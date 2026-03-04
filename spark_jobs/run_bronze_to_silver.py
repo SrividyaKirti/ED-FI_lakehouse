@@ -133,12 +133,12 @@ def run(
     if edfi_input is not None:
         edfi_parquet = os.path.join(parquet_output, "edfi")
         print(f"Loading Ed-Fi Parquet into DuckDB ({duckdb_path}) ...")
-        load_parquet_to_duckdb(edfi_parquet, duckdb_path, schema="silver")
+        load_parquet_to_duckdb(edfi_parquet, duckdb_path, schema="silver_edfi")
 
     if oneroster_input is not None:
         oneroster_parquet = os.path.join(parquet_output, "oneroster")
         print(f"Loading OneRoster Parquet into DuckDB ({duckdb_path}) ...")
-        load_parquet_to_duckdb(oneroster_parquet, duckdb_path, schema="silver")
+        load_parquet_to_duckdb(oneroster_parquet, duckdb_path, schema="silver_oneroster")
 
     print("Bronze-to-Silver pipeline complete.")
 
