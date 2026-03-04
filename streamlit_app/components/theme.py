@@ -30,7 +30,24 @@ def inject_css() -> None:
         /* ── Google Font ──────────────────────────────────────── */
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
 
-        html, body, [class*="st-"], .stApp {{
+        html, body, [class*="st-"], .stApp,
+        h1, h2, h3, h4, h5, h6,
+        p, span, div, label, li, a, td, th,
+        .stMarkdown, .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3,
+        .stSelectbox, .stSelectbox label,
+        .stRadio, .stRadio label,
+        .stMetric, .stMetric label, .stMetric [data-testid="stMetricValue"],
+        .stDataFrame, .stDataFrame th, .stDataFrame td,
+        [data-testid="stSidebar"], [data-testid="stSidebar"] *,
+        [data-testid="stSidebarNav"], [data-testid="stSidebarNav"] *,
+        button, input, textarea, select,
+        .stTabs [data-baseweb="tab"], .stTabs [data-baseweb="tab-list"],
+        [data-testid="stExpander"], [data-testid="stExpander"] *,
+        .page-header h1, .page-header p,
+        .section-header h3, .section-header p,
+        .metric-card, .metric-value, .metric-label, .metric-delta,
+        .insight-card, .insight-title, .insight-body,
+        .narrative {{
             font-family: 'DM Sans', sans-serif !important;
         }}
 

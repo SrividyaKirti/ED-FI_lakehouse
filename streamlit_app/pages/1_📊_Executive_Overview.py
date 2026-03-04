@@ -245,7 +245,7 @@ section("Architecture at a Glance")
 dot_source = """
 digraph architecture {
     rankdir=LR;
-    node [shape=box, style="filled,rounded", fontname="Inter, sans-serif",
+    node [shape=box, style="filled,rounded", fontname="DM Sans, sans-serif",
           fontsize=11, fontcolor="#1A202C", penwidth=0];
     edge [color="#A0AEC0", arrowsize=0.7];
 
