@@ -67,6 +67,12 @@ Thumbs.db
 *.tfvars
 crash.log
 
+# dbt
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+dbt_project/.user.yml
+
 # Jupyter
 .ipynb_checkpoints/
 
