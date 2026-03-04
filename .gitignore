@@ -29,6 +29,8 @@ data/gold/**/*
 !data/silver/**/.gitkeep
 !data/gold/.gitkeep
 !data/gold/**/.gitkeep
+# Allow dbt seed CSVs (reference data checked into version control)
+!dbt_project/seeds/*.csv
 
 # DuckDB
 *.duckdb
