@@ -34,16 +34,23 @@ mastery_summary as (
 
 ),
 
--- Detect declining trend: compare recent assessments to earlier ones
+-- Detect declining trend: compare first-half vs second-half of assessments per student
 mastery_trend as (
 
     select
-        student_id,
-        avg(case when assessment_count <= 3 then max_score_to_date end) as early_avg,
-        avg(case when assessment_count >= assessment_count - 2 then max_score_to_date end) as recent_avg
-
-    from latest_mastery
-    group by student_id
+        f.student_id,
+        avg(case when f.rn <= f.total / 2 then f.max_score_to_date end) as early_avg,
+        avg(case when f.rn > f.total / 2 then f.max_score_to_date end) as recent_avg
+    from (
+        select
+            student_id,
+            max_score_to_date,
+            row_number() over (partition by student_id order by date_key) as rn,
+            count(*) over (partition by student_id) as total
+        from {{ ref('fact_student_mastery_daily') }}
+    ) f
+    where f.total >= 2
+    group by f.student_id
 
 ),
 

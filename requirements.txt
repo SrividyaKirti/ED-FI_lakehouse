@@ -5,6 +5,5 @@ dbt-duckdb==1.9.1
 streamlit==1.41.0
 duckdb==1.2.0
 plotly==6.0.0
-streamlit-agraph==0.0.45
 graphviz==0.20.3
 pytest==8.3.4

@@ -16,7 +16,11 @@ from db import query
 # ---------------------------------------------------------------------------
 
 def _source_clause(alias: str = "m") -> str:
-    """Return a SQL WHERE clause fragment that filters by source system."""
+    """Return a SQL WHERE clause fragment that filters by source system.
+
+    SECURITY: src is always from a constrained st.selectbox ('edfi'/'oneroster'/None),
+    never from free-text input. DuckDB connection is read-only.
+    """
     src = st.session_state.get("source_filter")
     if src:
         return f" AND {alias}._source_system = '{src}'"
@@ -92,17 +96,17 @@ def _render_mastery_heatmap() -> None:
     # Sort columns by grade level embedded in standard code
     pivot = pivot.reindex(sorted(pivot.columns), axis=1)
 
-    # Color scale matching mastery levels:
-    # Needs Intervention (0-59) red, Developing (60-69) orange,
-    # Meeting (70-84) purple, Exceeding (85-100) green
+    # Color scale matching mastery levels from fact_student_mastery_daily.sql:
+    # Needs Intervention (<50) red, Developing (50-69) orange,
+    # Meeting (70-89) purple, Exceeding (>=90) green
     color_scale = [
-        [0.0, "#d32f2f"],   # red -- Needs Intervention
-        [0.59, "#d32f2f"],
-        [0.60, "#fb8c00"],  # orange -- Developing
-        [0.69, "#fb8c00"],
-        [0.70, "#7b1fa2"],  # purple -- Meeting
-        [0.84, "#7b1fa2"],
-        [0.85, "#388e3c"],  # green -- Exceeding
+        [0.0, "#d32f2f"],    # red -- Needs Intervention
+        [0.499, "#d32f2f"],
+        [0.50, "#fb8c00"],   # orange -- Developing
+        [0.699, "#fb8c00"],
+        [0.70, "#7b1fa2"],   # purple -- Meeting
+        [0.899, "#7b1fa2"],
+        [0.90, "#388e3c"],   # green -- Exceeding
         [1.0, "#388e3c"],
     ]
 
@@ -116,7 +120,7 @@ def _render_mastery_heatmap() -> None:
             zmax=100,
             colorbar=dict(
                 title="Score",
-                tickvals=[30, 65, 77, 92],
+                tickvals=[25, 60, 80, 95],
                 ticktext=["Needs Intervention", "Developing", "Meeting", "Exceeding"],
             ),
             hovertemplate=(
@@ -136,10 +140,10 @@ def _render_mastery_heatmap() -> None:
     # Legend below chart
     legend_cols = st.columns(4)
     labels = [
-        ("Needs Intervention", "0 -- 59", "#d32f2f"),
-        ("Developing", "60 -- 69", "#fb8c00"),
-        ("Meeting", "70 -- 84", "#7b1fa2"),
-        ("Exceeding", "85 -- 100", "#388e3c"),
+        ("Needs Intervention", "0 -- 49", "#d32f2f"),
+        ("Developing", "50 -- 69", "#fb8c00"),
+        ("Meeting", "70 -- 89", "#7b1fa2"),
+        ("Exceeding", "90 -- 100", "#388e3c"),
     ]
     for col, (label, rng, color) in zip(legend_cols, labels):
         col.markdown(

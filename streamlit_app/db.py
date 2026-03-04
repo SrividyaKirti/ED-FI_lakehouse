@@ -9,6 +9,12 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "data", "lakehouse.duckdb")
 
 @st.cache_resource
 def get_connection():
+    """Return a shared read-only DuckDB connection.
+
+    NOTE: DuckDB connections are not thread-safe. This is acceptable for a
+    single-user portfolio demo on Streamlit Cloud. For production multi-user
+    apps, use per-request connections or a connection pool.
+    """
     return duckdb.connect(DB_PATH, read_only=True)
 
 

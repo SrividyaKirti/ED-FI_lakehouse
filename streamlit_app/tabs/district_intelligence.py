@@ -85,37 +85,7 @@ def _render_cross_district_comparison() -> None:
         # agg_district_comparison has district_name = NULL for oneroster.
         # Re-derive from fact tables joined to dim_student for accurate
         # district labeling.
-        where = f"WHERE s._source_system = '{src}'" if src else ""
-        sql = f"""
-            SELECT
-                m.standard_code,
-                CASE
-                    WHEN s._source_system = 'edfi' THEN 'Grand Bend ISD'
-                    ELSE 'Riverside USD'
-                END as district_name,
-                COUNT(DISTINCT m.student_id) as student_count,
-                ROUND(AVG(m.max_score_to_date), 1) as avg_score,
-                ROUND(
-                    SUM(CASE WHEN m.max_score_to_date >= 70 THEN 1 ELSE 0 END) * 100.0
-                    / COUNT(*), 1
-                ) as mastery_pct
-            FROM (
-                SELECT m2.student_id, m2.standard_code, m2.max_score_to_date, m2._source_system,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY m2.student_id, m2.standard_code
-                           ORDER BY m2.assessment_count DESC
-                       ) as rn
-                FROM gold.fact_student_mastery_daily m2
-            ) m
-            INNER JOIN gold.dim_student s ON m.student_id = s.student_id
-            {where}
-            WHERE m.rn = 1
-            GROUP BY m.standard_code, s._source_system
-            HAVING COUNT(DISTINCT m.student_id) >= 3
-            ORDER BY m.standard_code
-        """
-        # Fix: the outer WHERE conflicts with the INNER JOIN / sub WHERE
-        # Rebuild with proper syntax:
+        # source_filter is always from a constrained st.selectbox, never free-text input.
         source_and = f"AND s._source_system = '{src}'" if src else ""
         sql = f"""
             SELECT

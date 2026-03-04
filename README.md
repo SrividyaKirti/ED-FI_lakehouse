@@ -4,7 +4,7 @@
 a data platform could ingest messy district data (Ed-Fi XML, OneRoster CSV)
 and transform it into reliable, FERPA-compliant analytics.
 
-[Live Demo on Streamlit Cloud](https://your-app.streamlit.app) _(placeholder -- will be updated after deployment)_
+[Live Demo on Streamlit Cloud](https://ed-filakehouse-oaendihhv7wjec2w2rkhog.streamlit.app/)
 
 ---
 
