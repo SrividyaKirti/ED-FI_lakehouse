@@ -1,0 +1,81 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Data files
+*.csv
+*.json
+*.xml
+*.parquet
+data/bronze/**/*
+data/silver/**/*
+data/gold/**/*
+!data/bronze/.gitkeep
+!data/bronze/**/.gitkeep
+!data/silver/.gitkeep
+!data/silver/**/.gitkeep
+!data/gold/.gitkeep
+!data/gold/**/.gitkeep
+
+# DuckDB
+*.duckdb
+*.duckdb.wal
+# Allow the Streamlit app's lakehouse database
+!streamlit_app/data/lakehouse.duckdb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Airflow
+airflow.cfg
+airflow.db
+airflow-webserver.pid
+logs/
+airflow_logs/
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+crash.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# mypy
+.mypy_cache/

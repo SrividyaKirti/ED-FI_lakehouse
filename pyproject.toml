@@ -1,0 +1,9 @@
+[project]
+name = "ed-fi-lakehouse"
+version = "0.1.0"
+description = "Ed-Fi Interoperability Lakehouse — a portfolio project demonstrating a modern data lakehouse built on Ed-Fi and OneRoster standards."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
