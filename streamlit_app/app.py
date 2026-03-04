@@ -18,5 +18,3 @@ narrative(
     "Select <b>Executive Overview</b> from the sidebar to explore the dashboard, "
     "or navigate directly to any analytics page."
 )
-
-st.info("👈 Use the sidebar navigation to explore the dashboard.")

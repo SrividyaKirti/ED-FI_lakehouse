@@ -40,36 +40,20 @@ def narrative(text: str) -> None:
 
 
 def setup_page() -> None:
-    """Set up shared page elements: CSS, sidebar branding, district filter, footer.
+    """Set up shared page elements: CSS, sidebar branding, and footer.
 
     Call this at the top of every page (including app.py) so the sidebar
     is consistent regardless of which page the user navigates to.
     """
     inject_css()
 
+    # Default filter values (all districts) so pages don't break
+    if "district_filter" not in st.session_state:
+        st.session_state["district_filter"] = None
+    if "source_filter" not in st.session_state:
+        st.session_state["source_filter"] = None
+
     with st.sidebar:
-        # -- Title at top --
-        st.markdown("### Ed-Fi Lakehouse")
-        st.caption("Interoperability Analytics Demo")
-
-        # -- District filter --
-        district = st.selectbox(
-            "Filter by District",
-            ["All Districts", "Grand Bend ISD (Ed-Fi)", "Riverside USD (OneRoster)"],
-        )
-
-        st.session_state["district_filter"] = {
-            "All Districts": None,
-            "Grand Bend ISD (Ed-Fi)": "Grand Bend ISD",
-            "Riverside USD (OneRoster)": "Riverside USD",
-        }[district]
-
-        st.session_state["source_filter"] = {
-            "All Districts": None,
-            "Grand Bend ISD (Ed-Fi)": "edfi",
-            "Riverside USD (OneRoster)": "oneroster",
-        }[district]
-
         # -- Fixed footer with GitHub + attribution --
         st.markdown(
             """
