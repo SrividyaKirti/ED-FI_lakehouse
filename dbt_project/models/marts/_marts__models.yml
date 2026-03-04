@@ -383,6 +383,10 @@ models:
           struggle.
       - name: standards_assessed
         description: Total number of distinct standards this student has been assessed on.
+      - name: declining_trend
+        description: >
+          True if the student's recent mastery scores are lower than their
+          early scores, indicating a downward trajectory.
       - name: risk_level
         description: >
           Composite risk classification: 'High' if 3+ standards below developing
@@ -410,8 +414,6 @@ models:
         description: District identifier for grouping.
       - name: district_name
         description: Display name of the district.
-      - name: _source_system
-        description: Originating data system for the student records in this district.
       - name: student_count
         description: Number of distinct students assessed on this standard in this district.
         tests:

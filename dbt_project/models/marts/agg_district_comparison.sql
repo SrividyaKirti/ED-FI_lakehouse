@@ -28,7 +28,6 @@ by_district as (
         lm.standard_code,
         sch.district_id,
         sch.district_name,
-        sch._source_system,
         count(distinct lm.student_id) as student_count,
         avg(lm.max_score_to_date) as avg_score,
         avg(case when lm.mastery_level in ('Meeting', 'Exceeding') then 1.0 else 0.0 end) as mastery_pct
@@ -38,7 +37,7 @@ by_district as (
         on lm.student_id = ds.student_id
     inner join {{ ref('dim_school') }} sch
         on ds.school_id = sch.school_id
-    group by lm.standard_code, sch.district_id, sch.district_name, sch._source_system
+    group by lm.standard_code, sch.district_id, sch.district_name
 
 )
 

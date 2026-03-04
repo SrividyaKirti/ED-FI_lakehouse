@@ -9,7 +9,11 @@ with responses as (
         a.student_answer,
         a.score,
         a.assessment_date,
-        case when a.student_answer = a.correct_answer then true else false end as is_correct,
+        case
+            when a.student_answer is null or a.correct_answer is null then null
+            when a.student_answer = a.correct_answer then true
+            else false
+        end as is_correct,
         a.misconception_indicator,
         mp.pattern_label as misconception_tag,
         mp.description as misconception_description,

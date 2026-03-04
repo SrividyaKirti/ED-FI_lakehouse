@@ -5,11 +5,18 @@ with assessment_scores as (
         a.student_id,
         a.standard_code,
         a.assessment_date,
-        cast(a.score as double) as score,
+        try_cast(a.score as double) as score,
         a._source_system
 
     from {{ ref('int_assessments') }} a
     where a.score is not null
+
+),
+
+valid_scores as (
+
+    select * from assessment_scores
+    where score is not null  -- exclude rows where try_cast failed
 
 ),
 
@@ -32,7 +39,7 @@ mastery_calc as (
             rows between unbounded preceding and current row
         ) as assessment_count
 
-    from assessment_scores
+    from valid_scores
 
 ),
 
