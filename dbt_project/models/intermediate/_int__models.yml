@@ -119,19 +119,19 @@ models:
   - name: int_staff
     description: >
       Unified staff records from Ed-Fi staff and OneRoster users
-      (filtered to role='teacher'). Ed-Fi staff have plain-text names;
-      OneRoster teacher names are pre-hashed.
+      (filtered to role='teacher'). All PII is SHA-256 hashed for
+      FERPA compliance.
     columns:
       - name: staff_id
         description: "Unique staff identifier"
         tests:
           - not_null
-      - name: first_name
-        description: "Staff first name (plain text for Ed-Fi, hashed for OneRoster)"
-      - name: last_name
-        description: "Staff last name (plain text for Ed-Fi, hashed for OneRoster)"
-      - name: email
-        description: "Staff email (plain text for Ed-Fi, hashed for OneRoster)"
+      - name: first_name_hash
+        description: "SHA-256 hash of staff first name"
+      - name: last_name_hash
+        description: "SHA-256 hash of staff last name"
+      - name: email_hash
+        description: "SHA-256 hash of staff email"
       - name: _source_system
         description: "Originating source system"
         tests:
