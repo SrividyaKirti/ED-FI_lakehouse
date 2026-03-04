@@ -8,7 +8,9 @@ dynamic insight cards, and design-system theming.
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+_app_dir = os.path.join(os.path.dirname(__file__), "..")
+if _app_dir not in sys.path:
+    sys.path.insert(0, _app_dir)
 
 import streamlit as st  # noqa: E402
 import plotly.express as px  # noqa: E402

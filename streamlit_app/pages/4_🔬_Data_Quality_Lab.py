@@ -3,7 +3,9 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+_app_dir = os.path.join(os.path.dirname(__file__), "..")
+if _app_dir not in sys.path:
+    sys.path.insert(0, _app_dir)
 
 import streamlit as st  # noqa: E402
 import plotly.graph_objects as go  # noqa: E402
@@ -18,6 +20,7 @@ from components import (  # noqa: E402
     stat_row,
     insight_card,
     apply_theme,
+    COLORS,
 )
 
 
@@ -292,7 +295,7 @@ def _process_records(
                 y=rule_counts["rule_name"],
                 x=rule_counts["count"],
                 orientation="h",
-                marker=dict(color="#E53E3E"),
+                marker=dict(color=COLORS["danger"]),
                 text=rule_counts["count"],
                 textposition="outside",
                 hovertemplate="%{y}: %{x} records<extra></extra>",

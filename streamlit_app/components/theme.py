@@ -15,6 +15,7 @@ COLORS: dict[str, str] = {
     "warning": "#ED8936",
     "danger": "#E53E3E",
     "info": "#3182CE",
+    "neutral": "#CBD5E0",
 }
 
 

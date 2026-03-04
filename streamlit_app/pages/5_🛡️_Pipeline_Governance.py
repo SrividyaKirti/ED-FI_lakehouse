@@ -3,7 +3,9 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+_app_dir = os.path.join(os.path.dirname(__file__), "..")
+if _app_dir not in sys.path:
+    sys.path.insert(0, _app_dir)
 
 import streamlit as st  # noqa: E402
 import pandas as pd  # noqa: E402

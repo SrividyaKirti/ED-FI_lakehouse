@@ -8,7 +8,9 @@ import plotly.graph_objects as go
 
 # Ensure the streamlit_app directory is on the import path so that
 # ``components`` and ``db`` resolve correctly regardless of cwd.
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+_app_dir = os.path.join(os.path.dirname(__file__), "..")
+if _app_dir not in sys.path:
+    sys.path.insert(0, _app_dir)
 
 from components import (  # noqa: E402
     inject_css,

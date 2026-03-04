@@ -7,7 +7,9 @@ dynamic insight cards, and design-system theming.
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+_app_dir = os.path.join(os.path.dirname(__file__), "..")
+if _app_dir not in sys.path:
+    sys.path.insert(0, _app_dir)
 
 import streamlit as st  # noqa: E402
 import plotly.express as px  # noqa: E402
@@ -24,6 +26,7 @@ from components import (  # noqa: E402
     apply_theme,
     MASTERY_COLORS,
     RISK_COLORS,
+    COLORS,
 )
 
 
@@ -470,12 +473,14 @@ score_map = dict(zip(avg_mastery["standard_code"], avg_mastery["avg_score"]))
 def _node_color(code: str) -> str:
     score = score_map.get(code)
     if score is None:
-        return "#cccccc"
-    if score >= 85:
-        return MASTERY_COLORS["Exceeding"]     # #38A169 (success)
+        return COLORS["neutral"]
+    if score >= 90:
+        return MASTERY_COLORS["Exceeding"]
     if score >= 70:
-        return MASTERY_COLORS["Developing"]    # #ED8936 (warning)
-    return MASTERY_COLORS["Needs Intervention"]  # #E53E3E (danger)
+        return MASTERY_COLORS["Meeting"]
+    if score >= 50:
+        return MASTERY_COLORS["Developing"]
+    return MASTERY_COLORS["Needs Intervention"]
 
 
 def _short(code: str) -> str:
