@@ -1,0 +1,263 @@
+version: 2
+
+models:
+  - name: int_students
+    description: >
+      Unified student records from Ed-Fi (Grand Bend ISD) and OneRoster
+      (Riverside USD). PII fields are pre-hashed at the Bronze->Silver layer.
+      OneRoster users are filtered to role='student'.
+    columns:
+      - name: student_id
+        description: "Unique student identifier (student_unique_id from Ed-Fi, sourced_id from OneRoster)"
+        tests:
+          - not_null:
+              config:
+                severity: warn  # planted DQ issues in source data
+      - name: first_name_hash
+        description: "SHA-256 hash of student first name"
+      - name: last_name_hash
+        description: "SHA-256 hash of student last name"
+      - name: email_hash
+        description: "SHA-256 hash of student email address"
+      - name: birth_year
+        description: "Student birth year (integer, derived from birth_date)"
+      - name: _source_system
+        description: "Originating source system (grand_bend_isd or riverside_usd)"
+        tests:
+          - not_null
+
+  - name: int_schools
+    description: >
+      Unified school records from Ed-Fi schools and OneRoster orgs
+      (filtered to org_type='school'). District name may be null for
+      OneRoster records; seed_school_registry provides the canonical lookup.
+    columns:
+      - name: school_id
+        description: "Unique school identifier"
+        tests:
+          - not_null
+          - unique
+      - name: school_name
+        description: "School display name"
+        tests:
+          - not_null
+      - name: school_type
+        description: "School type classification (may be null for OneRoster)"
+      - name: district_id
+        description: "Parent district identifier"
+      - name: district_name
+        description: "District display name (null for OneRoster records)"
+      - name: _source_system
+        description: "Originating source system"
+        tests:
+          - not_null
+
+  - name: int_enrollments
+    description: >
+      Unified student-school enrollments with normalized grade levels.
+      Ed-Fi text descriptors and OneRoster zero-padded numbers are both
+      converted to integer grade levels via the normalize_grade_level macro.
+    columns:
+      - name: student_id
+        description: "Student identifier (references int_students)"
+        tests:
+          - not_null:
+              config:
+                severity: warn  # planted DQ issues in source data
+          - relationships:
+              arguments:
+                to: ref('int_students')
+                field: student_id
+      - name: school_id
+        description: "School identifier (references int_schools)"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_schools')
+                field: school_id
+              config:
+                severity: warn  # planted DQ issues — orphan school_ids in source data
+      - name: enrollment_start_date
+        description: "Date the enrollment began"
+      - name: grade_level
+        description: "Normalized integer grade level (0=K, 1-12)"
+      - name: _source_system
+        description: "Originating source system"
+        tests:
+          - not_null
+
+  - name: int_sections
+    description: >
+      Unified course sections from Ed-Fi sections and OneRoster classes.
+      OneRoster curriculum_version is extracted from class_code
+      (e.g., 'MATH-0-A' yields 'A').
+    columns:
+      - name: section_id
+        description: "Unique section/class identifier"
+        tests:
+          - not_null
+      - name: school_id
+        description: "School identifier (references int_schools)"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_schools')
+                field: school_id
+      - name: course_name
+        description: "Course title"
+      - name: curriculum_version
+        description: "Curriculum version letter (A or B)"
+      - name: term_name
+        description: "Academic term name (null for OneRoster)"
+      - name: _source_system
+        description: "Originating source system"
+        tests:
+          - not_null
+
+  - name: int_staff
+    description: >
+      Unified staff records from Ed-Fi staff and OneRoster users
+      (filtered to role='teacher'). Ed-Fi staff have plain-text names;
+      OneRoster teacher names are pre-hashed.
+    columns:
+      - name: staff_id
+        description: "Unique staff identifier"
+        tests:
+          - not_null
+      - name: first_name
+        description: "Staff first name (plain text for Ed-Fi, hashed for OneRoster)"
+      - name: last_name
+        description: "Staff last name (plain text for Ed-Fi, hashed for OneRoster)"
+      - name: email
+        description: "Staff email (plain text for Ed-Fi, hashed for OneRoster)"
+      - name: _source_system
+        description: "Originating source system"
+        tests:
+          - not_null
+
+  - name: int_grades
+    description: >
+      Student grading records from Ed-Fi only. OneRoster uses results
+      (assessment items) rather than cumulative grades.
+    columns:
+      - name: student_id
+        description: "Student identifier (references int_students)"
+        tests:
+          - not_null:
+              config:
+                severity: warn  # planted DQ issues in source data
+          - relationships:
+              arguments:
+                to: ref('int_students')
+                field: student_id
+      - name: section_id
+        description: "Section identifier (references int_sections)"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_sections')
+                field: section_id
+      - name: grading_period
+        description: "Grading period descriptor"
+        tests:
+          - not_null
+      - name: numeric_grade
+        description: "Numeric grade value"
+      - name: _source_system
+        description: "Originating source system"
+        tests:
+          - not_null
+
+  - name: int_assessments
+    description: >
+      Unified assessment item results from Ed-Fi assessment_results and
+      OneRoster results. Each row is one student response to one question.
+      Includes misconception_indicator for learning gap analysis.
+    columns:
+      - name: student_id
+        description: "Student identifier (references int_students)"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_students')
+                field: student_id
+      - name: assessment_id
+        description: "Assessment or line item identifier"
+        tests:
+          - not_null
+      - name: question_number
+        description: "Question number within the assessment"
+      - name: standard_code
+        description: "Learning standard code aligned to this question"
+      - name: correct_answer
+        description: "The correct answer for this question"
+      - name: student_answer
+        description: "The student's submitted answer"
+      - name: score
+        description: "Numeric score for this item"
+      - name: assessment_date
+        description: "Date the assessment was administered"
+      - name: misconception_indicator
+        description: "Flag indicating a known misconception pattern"
+      - name: _source_system
+        description: "Originating source system"
+        tests:
+          - not_null
+
+  - name: int_attendance
+    description: >
+      Daily student attendance events from Ed-Fi only. OneRoster does not
+      include attendance data in its standard CSV exports.
+    columns:
+      - name: student_id
+        description: "Student identifier (references int_students)"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_students')
+                field: student_id
+      - name: school_id
+        description: "School identifier (references int_schools)"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_schools')
+                field: school_id
+      - name: event_date
+        description: "Date of the attendance event"
+        tests:
+          - not_null
+      - name: attendance_status
+        description: "Attendance status descriptor (Present, Absent, Tardy, etc.)"
+        tests:
+          - not_null
+      - name: _source_system
+        description: "Originating source system"
+        tests:
+          - not_null
+
+  - name: int_standards
+    description: >
+      Learning standards reference data sourced from the seed_learning_standards
+      CSV. Provides standard descriptions, domains, grade levels, and
+      prerequisite relationships for curriculum alignment analysis.
+    columns:
+      - name: standard_code
+        description: "Unique standard identifier (e.g., CCSS.MATH.K.OA.1)"
+        tests:
+          - not_null
+          - unique
+      - name: standard_description
+        description: "Human-readable description of the standard"
+      - name: domain
+        description: "Subject domain (e.g., Operations and Algebraic Thinking)"
+      - name: grade_level
+        description: "Grade level this standard applies to"
+      - name: prerequisite_standard_code
+        description: "Standard code that is a prerequisite for this standard"
