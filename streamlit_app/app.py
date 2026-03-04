@@ -1,5 +1,5 @@
 import streamlit as st
-from components import inject_css, sidebar_branding, sidebar_footer
+from components import setup_page, page_header, narrative
 
 st.set_page_config(
     page_title="Ed-Fi Interoperability Lakehouse",
@@ -7,38 +7,7 @@ st.set_page_config(
     layout="wide",
 )
 
-inject_css()
-
-# --- Sidebar ---
-with st.sidebar:
-    sidebar_branding()
-
-    # District filter (shared across all pages via session_state)
-    district = st.selectbox(
-        "Filter by District",
-        ["All Districts", "Grand Bend ISD (Ed-Fi)", "Riverside USD (OneRoster)"],
-    )
-
-    district_filter = {
-        "All Districts": None,
-        "Grand Bend ISD (Ed-Fi)": "Grand Bend ISD",
-        "Riverside USD (OneRoster)": "Riverside USD",
-    }[district]
-
-    source_filter = {
-        "All Districts": None,
-        "Grand Bend ISD (Ed-Fi)": "edfi",
-        "Riverside USD (OneRoster)": "oneroster",
-    }[district]
-
-    st.session_state["district_filter"] = district_filter
-    st.session_state["source_filter"] = source_filter
-
-    # Fixed footer with GitHub link and attribution
-    sidebar_footer()
-
-# --- Landing page content ---
-from components import page_header, narrative
+setup_page()
 
 page_header(
     "Ed-Fi Interoperability Lakehouse",

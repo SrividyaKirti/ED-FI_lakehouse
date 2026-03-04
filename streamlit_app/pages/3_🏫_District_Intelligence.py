@@ -17,7 +17,7 @@ import plotly.express as px  # noqa: E402
 import pandas as pd  # noqa: E402
 from db import query  # noqa: E402
 from components import (  # noqa: E402
-    inject_css,
+    setup_page,
     page_header,
     section,
     narrative,
@@ -29,9 +29,7 @@ from components import (  # noqa: E402
     CURRICULUM_COLORS,
 )
 
-
-# ── CSS injection (each page must call this independently) ────────────
-inject_css()
+setup_page()
 
 
 # ── Page header ───────────────────────────────────────────────────────

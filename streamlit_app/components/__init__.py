@@ -10,4 +10,4 @@ from components.charts import (
     LAYER_COLORS,
     CURRICULUM_COLORS,
 )
-from components.layout import page_header, section, narrative, sidebar_branding, sidebar_footer
+from components.layout import page_header, section, narrative, setup_page

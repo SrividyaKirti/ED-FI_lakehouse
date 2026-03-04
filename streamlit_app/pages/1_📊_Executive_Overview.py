@@ -13,7 +13,7 @@ if _app_dir not in sys.path:
     sys.path.insert(0, _app_dir)
 
 from components import (  # noqa: E402
-    inject_css,
+    setup_page,
     page_header,
     section,
     narrative,
@@ -25,8 +25,7 @@ from components import (  # noqa: E402
 )
 from db import query  # noqa: E402
 
-# ── CSS injection (each page must call this independently) ──────────
-inject_css()
+setup_page()
 
 # ── Page header ─────────────────────────────────────────────────────
 page_header(
