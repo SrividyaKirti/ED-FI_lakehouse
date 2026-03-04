@@ -39,20 +39,24 @@ def narrative(text: str) -> None:
 
 
 def sidebar_branding() -> None:
-    """Render sidebar branding: project info, GitHub link, tech stack."""
+    """Render sidebar branding: title at top, project info fixed at bottom."""
     st.markdown("### Ed-Fi Lakehouse")
     st.caption("Interoperability Analytics Demo")
-    st.markdown("---")
 
-    st.markdown(
-        "[![GitHub](https://img.shields.io/badge/GitHub-Repo-white?logo=github)]"
-        "(https://github.com/SrividyaKirti/ED-FI_lakehouse)"
-    )
 
-    st.markdown("---")
-    st.markdown("**Built by** Vidya Kirti")
+def sidebar_footer() -> None:
+    """Render fixed footer at bottom of sidebar with GitHub link and attribution."""
     st.markdown(
-        "<small>PySpark &bull; dbt &bull; DuckDB<br>"
-        "Airflow &bull; Streamlit</small>",
+        """
+        <div class="sidebar-footer">
+            <a href="https://github.com/SrividyaKirti/ED-FI_lakehouse" target="_blank">
+                <img src="https://img.shields.io/badge/GitHub-Repo-white?logo=github" alt="GitHub Repo">
+            </a>
+            <div style="margin-top: 0.5rem;">
+                <small><b>Built by</b> Vidya Kirti</small><br>
+                <small>PySpark &bull; dbt &bull; DuckDB &bull; Airflow &bull; Streamlit</small>
+            </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )

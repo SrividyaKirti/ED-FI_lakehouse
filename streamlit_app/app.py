@@ -1,5 +1,5 @@
 import streamlit as st
-from components import inject_css, sidebar_branding
+from components import inject_css, sidebar_branding, sidebar_footer
 
 st.set_page_config(
     page_title="Ed-Fi Interoperability Lakehouse",
@@ -12,7 +12,6 @@ inject_css()
 # --- Sidebar ---
 with st.sidebar:
     sidebar_branding()
-    st.markdown("---")
 
     # District filter (shared across all pages via session_state)
     district = st.selectbox(
@@ -34,6 +33,9 @@ with st.sidebar:
 
     st.session_state["district_filter"] = district_filter
     st.session_state["source_filter"] = source_filter
+
+    # Fixed footer with GitHub link and attribution
+    sidebar_footer()
 
 # --- Landing page content ---
 from components import page_header, narrative

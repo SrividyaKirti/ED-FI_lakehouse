@@ -27,6 +27,13 @@ def inject_css() -> None:
     st.markdown(
         f"""
         <style>
+        /* ── Google Font ──────────────────────────────────────── */
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+        html, body, [class*="st-"], .stApp {{
+            font-family: 'DM Sans', sans-serif !important;
+        }}
+
         /* ── Page layout ────────────────────────────────────── */
         .block-container {{
             padding-top: 1.5rem;
@@ -51,7 +58,7 @@ def inject_css() -> None:
 
         section[data-testid="stSidebar"] a {{
             color: #FFFFFF !important;
-            text-decoration: underline;
+            text-decoration: none !important;
             opacity: 0.9;
         }}
 
@@ -59,9 +66,43 @@ def inject_css() -> None:
             opacity: 1;
         }}
 
+        /* Hide the default "app" entry in sidebar navigation */
+        [data-testid="stSidebarNav"] li:first-child {{
+            display: none;
+        }}
+
+        /* Remove underline from all sidebar nav links */
+        [data-testid="stSidebarNav"] a {{
+            text-decoration: none !important;
+        }}
+
         /* Sidebar select-box text needs to stay dark for readability */
         section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] span {{
             color: {COLORS["text_primary"]} !important;
+        }}
+
+        /* Sidebar footer branding - fixed at bottom */
+        .sidebar-footer {{
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: inherit;
+            padding: 1rem 1.5rem;
+            background: linear-gradient(0deg, #0a5c5f 0%, rgba(10, 92, 95, 0.8) 100%);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            z-index: 999;
+        }}
+        .sidebar-footer a {{
+            color: #FFFFFF !important;
+            text-decoration: none !important;
+        }}
+        .sidebar-footer small {{
+            color: rgba(255, 255, 255, 0.7) !important;
+        }}
+
+        /* Add bottom padding to sidebar content so it doesn't overlap footer */
+        section[data-testid="stSidebar"] > div:first-child {{
+            padding-bottom: 120px;
         }}
 
         /* ── Metric card ────────────────────────────────────── */

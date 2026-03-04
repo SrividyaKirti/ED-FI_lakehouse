@@ -38,7 +38,7 @@ CURRICULUM_COLORS = {
 def apply_theme(fig: go.Figure) -> go.Figure:
     """Apply consistent styling to a Plotly figure."""
     fig.update_layout(
-        font=dict(family="Inter, system-ui, sans-serif", color=COLORS["text_primary"]),
+        font=dict(family="DM Sans, system-ui, sans-serif", color=COLORS["text_primary"]),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=40, r=20, t=40, b=40),
