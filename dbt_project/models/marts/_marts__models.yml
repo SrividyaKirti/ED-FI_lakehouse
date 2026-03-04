@@ -1,0 +1,426 @@
+version: 2
+
+models:
+
+  # ──────────────────────────────────────────────
+  #  DIMENSION MODELS
+  # ──────────────────────────────────────────────
+
+  - name: dim_student
+    description: >
+      Student dimension enriched with enrollment data. Combines student
+      demographic identifiers (PII already hashed for FERPA compliance) with
+      their school assignment and grade level from enrollment records.
+      Primary grain: one row per student-enrollment combination.
+    columns:
+      - name: student_id
+        description: Unique student identifier (Ed-Fi studentUniqueId or OneRoster sourcedId).
+        tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: first_name_hash
+        description: SHA-256 hash of the student's first name (FERPA-compliant PII handling).
+      - name: last_name_hash
+        description: SHA-256 hash of the student's last name (FERPA-compliant PII handling).
+      - name: email_hash
+        description: SHA-256 hash of the student's email address (FERPA-compliant PII handling).
+      - name: birth_year
+        description: Student's birth year (generalized from date of birth for k-anonymity).
+      - name: school_id
+        description: School the student is enrolled in; foreign key to dim_school.
+        tests:
+          - relationships:
+              to: ref('dim_school')
+              field: school_id
+              config:
+                severity: warn
+      - name: grade_level
+        description: Normalized grade level (e.g., 'K', '01', '02', ..., '12').
+      - name: _source_system
+        description: Originating data system ('Ed-Fi' or 'OneRoster').
+        tests:
+          - not_null
+
+  - name: dim_school
+    description: >
+      School dimension enriched with district registry seed data. Provides
+      school name, type, district affiliation, and grade band range. Coalesces
+      operational data from Ed-Fi/OneRoster with reference data from the
+      district registry seed for completeness.
+    columns:
+      - name: school_id
+        description: Unique school identifier.
+        tests:
+          - unique
+          - not_null
+      - name: school_name
+        description: Display name of the school.
+        tests:
+          - not_null
+      - name: school_type
+        description: >
+          School classification (e.g., 'Elementary', 'Middle', 'High').
+          Coalesced from operational data and seed registry.
+      - name: district_id
+        description: Parent district identifier.
+      - name: district_name
+        description: Display name of the parent district.
+      - name: grade_band_low
+        description: Lowest grade level served by the school (from registry seed).
+      - name: grade_band_high
+        description: Highest grade level served by the school (from registry seed).
+      - name: _source_system
+        description: Originating data system ('Ed-Fi' or 'OneRoster').
+        tests:
+          - not_null
+
+  - name: dim_standard
+    description: >
+      Learning standards dimension sourced from the seed_learning_standards
+      reference table. Contains Common Core / state standard codes, descriptions,
+      domain groupings, grade levels, and prerequisite chains for learning
+      progression analysis.
+    columns:
+      - name: standard_code
+        description: Unique standard identifier (e.g., 'CCSS.MATH.3.OA.1').
+        tests:
+          - unique
+          - not_null
+      - name: standard_description
+        description: Human-readable description of what the standard covers.
+        tests:
+          - not_null
+      - name: domain
+        description: Subject domain or strand (e.g., 'Operations & Algebraic Thinking').
+      - name: grade_level
+        description: Target grade level for the standard.
+      - name: prerequisite_standard_code
+        description: >
+          Standard code that should be mastered before this one,
+          enabling learning progression and gap analysis.
+
+  - name: dim_section
+    description: >
+      Section (class) dimension with school, course, and term information.
+      Represents a specific instance of a course offering at a school.
+    columns:
+      - name: section_id
+        description: Unique section identifier.
+        tests:
+          - unique
+          - not_null
+      - name: school_id
+        description: School where this section is offered; foreign key to dim_school.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_school')
+              field: school_id
+      - name: course_name
+        description: Name of the course (e.g., 'Grade 3 Mathematics').
+      - name: curriculum_version
+        description: Version or variant of the curriculum being taught.
+      - name: term_name
+        description: Academic term or semester name (e.g., '2024-2025 Fall Semester').
+      - name: _source_system
+        description: Originating data system ('Ed-Fi' or 'OneRoster').
+        tests:
+          - not_null
+
+  - name: dim_misconception_pattern
+    description: >
+      Misconception pattern reference dimension sourced from the
+      seed_misconception_patterns table. Maps common wrong-answer patterns
+      to specific standards, providing diagnostic labels and suggested
+      re-teach strategies for teachers. Powers the Classroom Insights tab's
+      misconception analysis.
+    columns:
+      - name: misconception_id
+        description: Unique identifier for the misconception pattern.
+        tests:
+          - unique
+          - not_null
+      - name: standard_code
+        description: The learning standard this misconception relates to.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_standard')
+              field: standard_code
+      - name: pattern_label
+        description: Short label for the misconception (e.g., 'adds_instead_of_multiplies').
+        tests:
+          - not_null
+      - name: description
+        description: Detailed explanation of the misconception and why students make this error.
+      - name: suggested_reteach
+        description: Recommended instructional strategy to address this misconception.
+      - name: wrong_answer_pattern
+        description: >
+          Pattern or example of the incorrect answer that signals this
+          misconception (used for automated tagging).
+
+  # ──────────────────────────────────────────────
+  #  FACT TABLES
+  # ──────────────────────────────────────────────
+
+  - name: fact_student_mastery_daily
+    description: >
+      Daily student mastery fact table implementing Kiddom's "max value"
+      mastery method. For each student-standard-date combination, tracks the
+      current assessment score AND the running maximum score to date. The
+      mastery level is determined by the highest score ever achieved (not the
+      average), reflecting Kiddom's product philosophy that demonstrated
+      competence should not be penalized by earlier attempts.
+      Grain: one row per student per standard per assessment date.
+    columns:
+      - name: student_id
+        description: Student identifier; foreign key to dim_student.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_student')
+              field: student_id
+      - name: standard_code
+        description: Learning standard assessed; foreign key to dim_standard.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_standard')
+              field: standard_code
+      - name: date_key
+        description: Date of the assessment event.
+        tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: score
+        description: Score received on this specific assessment attempt.
+      - name: _source_system
+        description: Originating data system ('Ed-Fi' or 'OneRoster').
+        tests:
+          - not_null
+      - name: max_score_to_date
+        description: >
+          Running maximum score for this student-standard pair up to and
+          including this date. This is the core of Kiddom's "max value"
+          mastery method.
+        tests:
+          - not_null
+      - name: assessment_count
+        description: Cumulative count of assessments for this student-standard pair up to this date.
+      - name: mastery_level
+        description: >
+          Categorical mastery level derived from max_score_to_date:
+          'Exceeding' (>=90), 'Meeting' (>=70), 'Developing' (>=50),
+          'Needs Intervention' (<50).
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Exceeding', 'Meeting', 'Developing', 'Needs Intervention']
+
+  - name: fact_assessment_responses
+    description: >
+      Item-level assessment response fact table. Each row represents a single
+      student's answer to a single question, enriched with correctness flags
+      and misconception tagging from the dim_misconception_pattern dimension.
+      Powers the Classroom Insights tab's item analysis and misconception
+      drill-down features.
+      Grain: one row per student per assessment per question.
+    columns:
+      - name: student_id
+        description: Student identifier; foreign key to dim_student.
+        tests:
+          - not_null
+      - name: assessment_id
+        description: Assessment identifier.
+        tests:
+          - not_null
+      - name: question_number
+        description: Question number within the assessment.
+        tests:
+          - not_null
+      - name: standard_code
+        description: Learning standard this question assesses; foreign key to dim_standard.
+        tests:
+          - not_null
+      - name: correct_answer
+        description: The correct answer for this question.
+      - name: student_answer
+        description: The answer the student provided.
+      - name: score
+        description: Score awarded for this response.
+      - name: assessment_date
+        description: Date the assessment was administered.
+        tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: is_correct
+        description: Boolean flag indicating whether the student's answer matches the correct answer.
+        tests:
+          - not_null
+      - name: misconception_indicator
+        description: Raw misconception indicator from the source assessment data.
+      - name: misconception_tag
+        description: >
+          Matched misconception pattern label from dim_misconception_pattern.
+          Null if the answer was correct or no known misconception pattern matched.
+      - name: misconception_description
+        description: Detailed description of the matched misconception, if any.
+      - name: suggested_reteach
+        description: Recommended re-teach strategy for the matched misconception, if any.
+      - name: _source_system
+        description: Originating data system ('Ed-Fi' or 'OneRoster').
+        tests:
+          - not_null
+
+  - name: fact_attendance_daily
+    description: >
+      Daily attendance fact table recording each student's attendance status
+      per school per day. Used by the early warning system to calculate
+      attendance rates and identify chronically absent students.
+      Grain: one row per student per school per event date.
+    columns:
+      - name: student_id
+        description: Student identifier; foreign key to dim_student.
+        tests:
+          - not_null
+      - name: school_id
+        description: School identifier; foreign key to dim_school.
+        tests:
+          - not_null
+      - name: event_date
+        description: Calendar date of the attendance event.
+        tests:
+          - not_null
+      - name: status
+        description: >
+          Attendance status for the day (e.g., 'Present', 'Absent',
+          'Tardy', 'Excused Absence').
+        tests:
+          - not_null
+      - name: _source_system
+        description: Originating data system ('Ed-Fi' or 'OneRoster').
+        tests:
+          - not_null
+
+  - name: fact_dq_quarantine_log
+    description: >
+      Data quality quarantine log capturing records that fail validation rules.
+      Implements a proactive DQ gate pattern: instead of silently dropping bad
+      data, violations are logged with full context (rule name, field, value,
+      expected) so analysts can investigate and data stewards can remediate.
+      Powers the DQ Simulator tab in the Streamlit app.
+      Grain: one row per quarantined record per violated rule.
+    columns:
+      - name: source_system
+        description: The originating data system where the violation was detected.
+        tests:
+          - not_null
+      - name: entity_type
+        description: Type of entity that failed validation (e.g., 'enrollment', 'student').
+        tests:
+          - not_null
+      - name: record_id
+        description: Identifier of the offending record (student_id or 'UNKNOWN' for null IDs).
+        tests:
+          - not_null
+      - name: rule_name
+        description: Machine-readable name of the DQ rule that was violated.
+        tests:
+          - not_null
+      - name: rule_description
+        description: Human-readable description of the DQ rule and why it matters.
+      - name: field_name
+        description: Name of the field that failed validation.
+        tests:
+          - not_null
+      - name: field_value
+        description: The actual value that caused the violation (cast to varchar).
+      - name: expected_value
+        description: Description of what the valid value should be or look like.
+      - name: quarantined_at
+        description: Timestamp when the record was flagged by the DQ engine.
+        tests:
+          - not_null
+
+  # ──────────────────────────────────────────────
+  #  AGGREGATE MODELS
+  # ──────────────────────────────────────────────
+
+  - name: agg_early_warning
+    description: >
+      Early warning system aggregate combining mastery trends and attendance
+      rates to produce a risk score for each student. Uses a multi-signal
+      approach: students with multiple standards below 'Developing' mastery
+      AND low attendance are flagged as 'High' risk. Powers the Classroom
+      Insights tab's early warning indicators.
+      Grain: one row per student.
+    columns:
+      - name: student_id
+        description: Student identifier; foreign key to dim_student.
+        tests:
+          - unique
+          - not_null
+          - relationships:
+              to: ref('dim_student')
+              field: student_id
+      - name: avg_mastery_score
+        description: >
+          Average of max_score_to_date across all standards assessed for this
+          student. Represents overall academic performance using the "max value"
+          mastery method.
+      - name: attendance_rate
+        description: >
+          Proportion of days marked 'Present' out of total attendance records.
+          Defaults to 1.0 if no attendance data exists for the student.
+      - name: count_below_developing
+        description: >
+          Number of standards where the student's max_score_to_date is below 50
+          (the 'Developing' threshold). Higher counts indicate broader academic
+          struggle.
+      - name: standards_assessed
+        description: Total number of distinct standards this student has been assessed on.
+      - name: risk_level
+        description: >
+          Composite risk classification: 'High' if 3+ standards below developing
+          AND attendance < 90%; 'Medium' if 2+ standards below developing OR
+          attendance < 90%; 'Low' otherwise.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['High', 'Medium', 'Low']
+
+  - name: agg_district_comparison
+    description: >
+      Cross-district mastery comparison aggregate. For each standard and
+      district, calculates the average mastery score and percentage of students
+      meeting or exceeding mastery benchmarks. Uses each student's latest
+      mastery level per standard to avoid double-counting from multiple
+      assessment dates. Powers the District Intelligence tab.
+      Grain: one row per standard per district.
+    columns:
+      - name: standard_code
+        description: Learning standard being compared; foreign key to dim_standard.
+        tests:
+          - not_null
+      - name: district_id
+        description: District identifier for grouping.
+      - name: district_name
+        description: Display name of the district.
+      - name: _source_system
+        description: Originating data system for the student records in this district.
+      - name: student_count
+        description: Number of distinct students assessed on this standard in this district.
+        tests:
+          - not_null
+      - name: avg_score
+        description: >
+          Average of max_score_to_date across all students in this district
+          for this standard.
+      - name: mastery_pct
+        description: >
+          Proportion of students whose mastery level is 'Meeting' or 'Exceeding'
+          (max_score_to_date >= 70). Ranges from 0.0 to 1.0.
