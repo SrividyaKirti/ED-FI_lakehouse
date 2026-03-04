@@ -83,24 +83,15 @@ def inject_css() -> None:
             opacity: 1;
         }}
 
-        /* Project title fixed above the navigation */
-        [data-testid="stSidebarNav"]::before {{
+        /* Project title at the very top of the sidebar */
+        section[data-testid="stSidebar"] > div:first-child::before {{
             content: "Ed-Fi Lakehouse";
             display: block;
             font-family: 'DM Sans', sans-serif;
-            font-size: 1.3rem;
+            font-size: 1.4rem;
             font-weight: 700;
             color: #FFFFFF;
-            padding: 1rem 1rem 0.25rem 1rem;
-        }}
-
-        [data-testid="stSidebarNav"]::after {{
-            content: "Interoperability Analytics Demo";
-            display: block;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.7);
-            padding: 0 1rem 0.75rem 1rem;
+            padding: 1.25rem 1rem 1rem 1rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.15);
             margin-bottom: 0.5rem;
         }}
