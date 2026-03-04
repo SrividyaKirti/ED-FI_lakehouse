@@ -1,0 +1,299 @@
+version: 2
+
+models:
+  - name: stg_oneroster__users
+    description: "Staged users (students and teachers) from OneRoster (PII hashed at Bronze->Silver)"
+    columns:
+      - name: sourced_id
+        description: "Unique user identifier from OneRoster"
+        tests:
+          - not_null
+          - unique
+      - name: role
+        description: "User role (student, teacher, etc.)"
+        tests:
+          - not_null
+      - name: grades
+        description: "Grade levels associated with the user"
+      - name: given_name_hash
+        description: "SHA-256 hash of user given name"
+      - name: family_name_hash
+        description: "SHA-256 hash of user family name"
+      - name: email_hash
+        description: "SHA-256 hash of user email"
+      - name: birth_year
+        description: "Year of birth (generalized from birth_date for privacy)"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_oneroster__orgs
+    description: "Staged organizations (districts and schools) from OneRoster"
+    columns:
+      - name: org_id
+        description: "Unique organization identifier (sourced_id)"
+        tests:
+          - not_null
+          - unique
+      - name: org_name
+        description: "Organization name"
+        tests:
+          - not_null
+      - name: org_type
+        description: "Organization type (district, school)"
+        tests:
+          - not_null
+      - name: identifier
+        description: "External identifier for the organization"
+      - name: parent_sourced_id
+        description: "Parent organization sourced_id"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_oneroster__enrollments
+    description: "Staged user-class enrollment records from OneRoster"
+    columns:
+      - name: sourced_id
+        description: "Unique enrollment identifier"
+        tests:
+          - not_null
+          - unique
+      - name: class_sourced_id
+        description: "Class the user is enrolled in"
+        tests:
+          - not_null
+      - name: school_sourced_id
+        description: "School where enrollment occurs"
+      - name: user_sourced_id
+        description: "User who is enrolled"
+        tests:
+          - not_null
+      - name: role
+        description: "Enrollment role (student, teacher)"
+        tests:
+          - not_null
+      - name: begin_date
+        description: "Enrollment start date"
+      - name: end_date
+        description: "Enrollment end date"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_oneroster__classes
+    description: "Staged class sections from OneRoster"
+    columns:
+      - name: sourced_id
+        description: "Unique class identifier"
+        tests:
+          - not_null
+          - unique
+      - name: title
+        description: "Class title"
+        tests:
+          - not_null
+      - name: grades
+        description: "Grade levels for this class"
+      - name: course_sourced_id
+        description: "Associated course identifier"
+      - name: class_code
+        description: "Class code"
+      - name: class_type
+        description: "Type of class (scheduled, homeroom, etc.)"
+      - name: school_sourced_id
+        description: "School where class is offered"
+        tests:
+          - not_null
+      - name: term_sourced_ids
+        description: "Associated term identifiers"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_oneroster__courses
+    description: "Staged course catalog from OneRoster"
+    columns:
+      - name: sourced_id
+        description: "Unique course identifier"
+        tests:
+          - not_null
+          - unique
+      - name: title
+        description: "Course title"
+        tests:
+          - not_null
+      - name: course_code
+        description: "Course code"
+      - name: grades
+        description: "Grade levels for this course"
+      - name: org_sourced_id
+        description: "Organization offering the course"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_oneroster__results
+    description: "Staged assessment scores and item responses from OneRoster"
+    columns:
+      - name: sourced_id
+        description: "Unique result identifier"
+        tests:
+          - not_null
+          - unique
+      - name: line_item_sourced_id
+        description: "Associated line item (assessment/assignment)"
+        tests:
+          - not_null
+      - name: student_sourced_id
+        description: "Student who received the result"
+        tests:
+          - not_null
+      - name: score
+        description: "Numeric score"
+      - name: score_date
+        description: "Date of the score"
+      - name: question_number
+        description: "Question number within the assessment"
+      - name: standard_code
+        description: "Learning standard code"
+      - name: correct_answer
+        description: "The correct answer"
+      - name: student_answer
+        description: "The student's answer"
+      - name: misconception_indicator
+        description: "Flag indicating a misconception pattern"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_oneroster__line_items
+    description: "Staged assignments and assessments from OneRoster"
+    columns:
+      - name: sourced_id
+        description: "Unique line item identifier"
+        tests:
+          - not_null
+          - unique
+      - name: title
+        description: "Line item title"
+        tests:
+          - not_null
+      - name: assign_date
+        description: "Date the item was assigned"
+      - name: due_date
+        description: "Due date for the item"
+      - name: class_sourced_id
+        description: "Class the line item belongs to"
+        tests:
+          - not_null
+      - name: result_value_min
+        description: "Minimum possible score"
+      - name: result_value_max
+        description: "Maximum possible score"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_oneroster__academic_sessions
+    description: "Staged terms and grading periods from OneRoster"
+    columns:
+      - name: sourced_id
+        description: "Unique academic session identifier"
+        tests:
+          - not_null
+          - unique
+      - name: title
+        description: "Session title"
+        tests:
+          - not_null
+      - name: type
+        description: "Session type (term, grading period, semester, schoolYear)"
+        tests:
+          - not_null
+      - name: start_date
+        description: "Session start date"
+      - name: end_date
+        description: "Session end date"
+      - name: parent_sourced_id
+        description: "Parent session identifier"
+      - name: school_year
+        description: "School year"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_oneroster__demographics
+    description: "Staged student demographics from OneRoster"
+    columns:
+      - name: sourced_id
+        description: "Unique demographics record identifier (maps to user sourced_id)"
+        tests:
+          - not_null
+          - unique
+      - name: birth_date
+        description: "Student date of birth"
+      - name: sex
+        description: "Student sex"
+      - name: american_indian_or_alaska_native
+        description: "American Indian or Alaska Native race indicator"
+      - name: asian
+        description: "Asian race indicator"
+      - name: black_or_african_american
+        description: "Black or African American race indicator"
+      - name: native_hawaiian_or_other_pacific_islander
+        description: "Native Hawaiian or Other Pacific Islander race indicator"
+      - name: white
+        description: "White race indicator"
+      - name: demographic_race_two_or_more_races
+        description: "Two or more races indicator"
+      - name: hispanic_or_latino_ethnicity
+        description: "Hispanic or Latino ethnicity indicator"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null

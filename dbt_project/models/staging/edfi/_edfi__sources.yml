@@ -1,0 +1,27 @@
+version: 2
+
+sources:
+  - name: edfi_silver
+    schema: silver_edfi
+    description: "Ed-Fi XML data parsed by PySpark into Silver layer"
+    tables:
+      - name: students
+        description: "Student demographics from Grand Bend ISD (PII hashed)"
+      - name: schools
+        description: "School buildings from Grand Bend ISD"
+      - name: enrollments
+        description: "Student-school enrollment associations"
+      - name: sections
+        description: "Class sections"
+      - name: section_associations
+        description: "Student-section roster assignments"
+      - name: staff
+        description: "Teacher and staff records"
+      - name: grades
+        description: "Grading period grades"
+      - name: assessment_results
+        description: "Assessment item-level responses"
+      - name: attendance
+        description: "Daily school attendance events"
+      - name: standards
+        description: "Learning standards"

@@ -1,0 +1,253 @@
+version: 2
+
+models:
+  - name: stg_edfi__students
+    description: "Staged student demographics from Ed-Fi (PII hashed at Bronze->Silver)"
+    columns:
+      - name: student_id
+        description: "Unique student identifier (student_unique_id)"
+        tests:
+          - not_null
+          - unique
+      - name: first_name_hash
+        description: "SHA-256 hash of student first name"
+      - name: last_name_hash
+        description: "SHA-256 hash of student last name"
+      - name: email_hash
+        description: "SHA-256 hash of student email"
+      - name: birth_year
+        description: "Year of birth (generalized from birth_date for privacy)"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_edfi__schools
+    description: "Staged school buildings from Ed-Fi"
+    columns:
+      - name: school_id
+        description: "Unique school identifier"
+        tests:
+          - not_null
+          - unique
+      - name: school_name
+        description: "Name of the school"
+        tests:
+          - not_null
+      - name: school_type
+        description: "Type of school (e.g., Elementary, Middle, High)"
+      - name: district_id
+        description: "District identifier"
+      - name: district_name
+        description: "Name of the district"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_edfi__enrollments
+    description: "Staged student-school enrollment associations from Ed-Fi"
+    columns:
+      - name: student_id
+        description: "Student identifier"
+        tests:
+          - not_null
+      - name: school_id
+        description: "School identifier"
+        tests:
+          - not_null
+      - name: enrollment_start_date
+        description: "Date the student enrolled (entry_date)"
+      - name: grade_level_raw
+        description: "Raw grade level descriptor from Ed-Fi"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_edfi__sections
+    description: "Staged class sections from Ed-Fi"
+    columns:
+      - name: section_id
+        description: "Unique section identifier"
+        tests:
+          - not_null
+          - unique
+      - name: school_id
+        description: "School where section is offered"
+        tests:
+          - not_null
+      - name: course_name
+        description: "Name of the course"
+      - name: curriculum_version
+        description: "Curriculum version identifier"
+      - name: term_name
+        description: "Academic term name"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_edfi__section_associations
+    description: "Staged student-section roster assignments from Ed-Fi"
+    columns:
+      - name: student_id
+        description: "Student identifier"
+        tests:
+          - not_null
+      - name: section_id
+        description: "Section identifier"
+        tests:
+          - not_null
+      - name: begin_date
+        description: "Date student was assigned to section"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_edfi__staff
+    description: "Staged teacher and staff records from Ed-Fi"
+    columns:
+      - name: staff_id
+        description: "Unique staff identifier"
+        tests:
+          - not_null
+          - unique
+      - name: first_name
+        description: "Staff first name"
+      - name: last_name
+        description: "Staff last name"
+      - name: email
+        description: "Staff email address"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_edfi__grades
+    description: "Staged grading period grades from Ed-Fi"
+    columns:
+      - name: student_id
+        description: "Student identifier"
+        tests:
+          - not_null
+      - name: section_id
+        description: "Section identifier"
+        tests:
+          - not_null
+      - name: grading_period
+        description: "Grading period name"
+      - name: numeric_grade
+        description: "Numeric grade value"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_edfi__assessments
+    description: "Staged assessment item-level responses from Ed-Fi"
+    columns:
+      - name: student_id
+        description: "Student identifier"
+        tests:
+          - not_null
+      - name: assessment_id
+        description: "Assessment identifier"
+        tests:
+          - not_null
+      - name: question_number
+        description: "Question number within the assessment"
+      - name: standard_code
+        description: "Learning standard code aligned to the question"
+      - name: correct_answer
+        description: "The correct answer"
+      - name: student_answer
+        description: "The student's answer"
+      - name: score
+        description: "Score for this item"
+      - name: assessment_date
+        description: "Date the assessment was taken"
+      - name: misconception_indicator
+        description: "Flag indicating a misconception pattern"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_edfi__attendance
+    description: "Staged daily school attendance events from Ed-Fi"
+    columns:
+      - name: student_id
+        description: "Student identifier"
+        tests:
+          - not_null
+      - name: school_id
+        description: "School identifier"
+        tests:
+          - not_null
+      - name: event_date
+        description: "Date of the attendance event"
+        tests:
+          - not_null
+      - name: attendance_status
+        description: "Attendance status (Present, Absent, Tardy, etc.)"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null
+
+  - name: stg_edfi__standards
+    description: "Staged learning standards from Ed-Fi"
+    columns:
+      - name: standard_code
+        description: "Unique learning standard code"
+        tests:
+          - not_null
+          - unique
+      - name: standard_description
+        description: "Description of the learning standard"
+      - name: _source_system
+        description: "Source system identifier"
+        tests:
+          - not_null
+      - name: _loaded_at
+        description: "Timestamp when record was loaded into Silver layer"
+        tests:
+          - not_null

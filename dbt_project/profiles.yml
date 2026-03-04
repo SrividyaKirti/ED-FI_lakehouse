@@ -1,0 +1,8 @@
+edfi_lakehouse:
+  outputs:
+    dev:
+      type: duckdb
+      path: "../data/lakehouse.duckdb"
+      schema: gold
+      threads: 4
+  target: dev

@@ -1,0 +1,25 @@
+version: 2
+
+sources:
+  - name: oneroster_silver
+    schema: silver_oneroster
+    description: "OneRoster CSV data parsed by PySpark into Silver layer"
+    tables:
+      - name: users
+        description: "Students and teachers from Riverside USD (PII hashed)"
+      - name: orgs
+        description: "Districts and schools"
+      - name: enrollments
+        description: "User-class enrollment records"
+      - name: classes
+        description: "Class sections"
+      - name: courses
+        description: "Course catalog"
+      - name: results
+        description: "Assessment scores and item responses"
+      - name: line_items
+        description: "Assignments and assessments"
+      - name: academic_sessions
+        description: "Terms and grading periods"
+      - name: demographics
+        description: "Student demographics"
