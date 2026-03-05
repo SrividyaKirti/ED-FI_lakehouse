@@ -11,7 +11,7 @@ from components.charts import (
     CURRICULUM_COLORS,
     SUBJECT_COLORS,
 )
-from components.layout import page_header, section, narrative, setup_page
+from components.layout import page_header, section, narrative, setup_page, divider, inline_filters
 from components.navigation import (
     init_nav_state,
     drill_into,

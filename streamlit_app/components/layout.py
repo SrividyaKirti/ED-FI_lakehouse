@@ -40,19 +40,23 @@ def narrative(text: str) -> None:
     )
 
 
-def setup_page() -> None:
-    """Set up shared page elements: CSS, sidebar filters, and footer.
+def divider() -> None:
+    """Render a subtle horizontal divider between sections."""
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 
-    Call this at the top of every page (including app.py) so the sidebar
-    is consistent regardless of which page the user navigates to.
+
+def inline_filters() -> None:
+    """Render District / School / Subject filters in a horizontal row.
+
+    Call this on any page that needs filtering. Reads from and writes to
+    session_state keys: nav_district, nav_school_id, nav_school_name,
+    subject_filter.
     """
-    inject_css()
-    init_nav_state()
+    from db import query
 
-    with st.sidebar:
-        # ── District filter ──
-        from db import query
+    c1, c2, c3 = st.columns(3)
 
+    with c1:
         districts = query(
             "SELECT DISTINCT district_name FROM gold.dim_school "
             "WHERE district_name IS NOT NULL ORDER BY district_name"
@@ -69,7 +73,7 @@ def setup_page() -> None:
         else:
             st.session_state["nav_district"] = selected_district
 
-        # ── School filter (filtered by district) ──
+    with c2:
         if st.session_state.get("nav_district"):
             d = st.session_state["nav_district"]
             schools = query(
@@ -97,7 +101,7 @@ def setup_page() -> None:
             st.session_state["nav_school_id"] = row["school_id"]
             st.session_state["nav_school_name"] = selected_school
 
-        # ── Subject filter ──
+    with c3:
         st.selectbox(
             "Subject",
             options=["All", "Math", "ELA", "Science"],
@@ -105,7 +109,17 @@ def setup_page() -> None:
             key="subject_filter",
         )
 
-        # ── Footer ──
+
+def setup_page() -> None:
+    """Set up shared page elements: CSS, nav state, sidebar branding.
+
+    Call this at the top of every page. Filters are NO LONGER in the
+    sidebar — each page calls inline_filters() where needed.
+    """
+    inject_css()
+    init_nav_state()
+
+    with st.sidebar:
         st.markdown(
             """
             <div class="sidebar-footer">
