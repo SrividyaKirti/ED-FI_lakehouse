@@ -26,6 +26,8 @@ from components import (  # noqa: E402
     insight_card,
     stat_row,
     apply_theme,
+    divider,
+    inline_filters,
     breadcrumb,
     back_button,
     drill_into,
@@ -75,8 +77,11 @@ def render_district():
     """Top-level overview across all districts."""
     page_header(
         "Executive Overview",
-        "Drill-down analytics across two interoperable school districts",
+        "K\u20135 elementary standards mastery across two interoperable school districts "
+        "\u2014 Grand Bend ISD (Ed-Fi) and Riverside USD (OneRoster)",
     )
+
+    inline_filters()
 
     # ── KPI row ──────────────────────────────────────────────────────
     try:
@@ -112,46 +117,219 @@ def render_district():
         ]
     )
 
-    # ── District comparison: avg mastery per subject ─────────────────
-    section("District Comparison", "Average mastery score by subject across districts")
+    divider()
+
+    # ── District Mastery Comparison (stacked) ─────────────────────────
+    section(
+        "District Mastery Comparison",
+        "Percentage of students Meeting or Exceeding standard, by subject",
+    )
 
     try:
-        district_df = query(
+        mastery_df = query(
             f"""
-            SELECT district_name, subject,
-                   ROUND(AVG(avg_score), 1) AS avg_score
-            FROM gold.agg_district_comparison
-            WHERE 1=1{subject_where('subject')}
-            GROUP BY district_name, subject
-            ORDER BY subject, district_name
+            SELECT
+                sch.district_name,
+                std.subject,
+                ROUND(AVG(CASE WHEN m.mastery_level IN ('Meeting', 'Exceeding')
+                          THEN 1.0 ELSE 0.0 END) * 100, 1) AS mastery_pct
+            FROM (
+                SELECT student_id, standard_code, mastery_level,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+            ) m
+            JOIN gold.dim_student stu ON stu.student_id = m.student_id
+            JOIN gold.dim_school sch ON sch.school_id = stu.school_id
+            JOIN gold.dim_standard std ON std.standard_code = m.standard_code
+            WHERE m.rn = 1{subject_where('std.subject')}
+            GROUP BY sch.district_name, std.subject
+            ORDER BY sch.district_name, std.subject
+            """
+        )
+
+        overall_df = query(
+            f"""
+            SELECT
+                std.subject,
+                ROUND(AVG(CASE WHEN m.mastery_level IN ('Meeting', 'Exceeding')
+                          THEN 1.0 ELSE 0.0 END) * 100, 1) AS mastery_pct
+            FROM (
+                SELECT student_id, standard_code, mastery_level,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+            ) m
+            JOIN gold.dim_standard std ON std.standard_code = m.standard_code
+            WHERE m.rn = 1{subject_where('std.subject')}
+            GROUP BY std.subject
             """
         )
     except Exception as exc:
         st.error(f"Failed to load district comparison: {exc}")
-        district_df = pd.DataFrame()
+        mastery_df = pd.DataFrame()
+        overall_df = pd.DataFrame()
 
-    if not _empty_guard(district_df, "district comparison"):
-        fig_dist = px.bar(
-            district_df,
-            x="subject",
-            y="avg_score",
-            color="district_name",
-            barmode="group",
-            color_discrete_map=DISTRICT_COLORS,
-            labels={"avg_score": "Avg Score", "subject": "Subject", "district_name": "District"},
-            text="avg_score",
+    if not _empty_guard(mastery_df, "district mastery comparison"):
+        districts_list = mastery_df["district_name"].unique().tolist()
+
+        for district in districts_list:
+            d_df = mastery_df[mastery_df["district_name"] == district].copy()
+            color = DISTRICT_COLORS.get(district, "#0D7377")
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                y=d_df["subject"],
+                x=d_df["mastery_pct"],
+                orientation="h",
+                marker_color=color,
+                text=d_df["mastery_pct"].apply(lambda v: f"{v:.1f}%"),
+                textposition="outside",
+                name=district,
+            ))
+
+            # Add overall average reference line per subject
+            if not overall_df.empty:
+                for _, row in overall_df.iterrows():
+                    fig.add_vline(
+                        x=row["mastery_pct"],
+                        line_dash="dash",
+                        line_color="#A0AEC0",
+                        line_width=1,
+                        annotation_text=f"Overall {row['mastery_pct']:.1f}%"
+                        if row["subject"] == overall_df.iloc[0]["subject"] else None,
+                        annotation_position="top",
+                    )
+
+            fig.update_layout(
+                title=dict(text=district, font=dict(size=14)),
+                height=180,
+                xaxis=dict(range=[0, 105], title="% Meeting or Exceeding"),
+                yaxis=dict(title=""),
+                margin=dict(l=80, r=40, t=40, b=30),
+                showlegend=False,
+            )
+            apply_theme(fig)
+            st.plotly_chart(fig, use_container_width=True)
+
+        narrative(
+            "Each bar shows the percentage of student-standard pairs rated "
+            "<b>Meeting</b> or <b>Exceeding</b>. The dashed line marks the "
+            "overall average across both districts for comparison."
         )
-        fig_dist.update_traces(texttemplate="%{text:.1f}", textposition="outside")
-        fig_dist.update_layout(
-            height=380,
-            yaxis=dict(range=[0, 105]),
-            legend=dict(title="District"),
+
+    divider()
+
+    # ── At-Risk Student Spotlight ──────────────────────────────────────
+    section("At-Risk Student Spotlight", "Students flagged by the early warning system")
+
+    try:
+        risk_df = query(
+            """
+            SELECT risk_level, COUNT(*) AS cnt
+            FROM gold.agg_early_warning
+            GROUP BY risk_level
+            """
         )
-        apply_theme(fig_dist)
-        st.plotly_chart(fig_dist, use_container_width=True)
+    except Exception as exc:
+        st.error(f"Failed to load risk data: {exc}")
+        risk_df = pd.DataFrame()
+
+    if not _empty_guard(risk_df, "risk data"):
+        high = int(risk_df.loc[risk_df["risk_level"] == "High", "cnt"].sum())
+        medium = int(risk_df.loc[risk_df["risk_level"] == "Medium", "cnt"].sum())
+        low = int(risk_df.loc[risk_df["risk_level"] == "Low", "cnt"].sum())
+
+        if high > 0:
+            insight_card(
+                "High-Risk Students",
+                f"<b>{high}</b> student(s) flagged as <b>High</b> risk and "
+                f"<b>{medium}</b> as <b>Medium</b> risk \u2014 primarily due to "
+                f"low mastery scores and attendance below 90%. "
+                f"<b>{low}</b> student(s) are Low risk. "
+                f"See the <b>Early Warning</b> page for details.",
+                severity="danger",
+            )
+        else:
+            insight_card(
+                "Risk Summary",
+                f"<b>{medium}</b> student(s) at Medium risk, <b>{low}</b> at Low risk. "
+                f"No students currently flagged as High risk.",
+                severity="success",
+            )
+
+    divider()
+
+    # ── Top / Bottom Performing Standards ──────────────────────────────
+    section(
+        "Standards Performance Highlights",
+        "Highest and lowest mastery standards across all schools",
+    )
+
+    try:
+        std_perf = query(
+            f"""
+            SELECT
+                m.standard_code,
+                std.subject,
+                std.grade_level,
+                ROUND(AVG(m.max_score_to_date), 1) AS avg_score
+            FROM (
+                SELECT student_id, standard_code, max_score_to_date,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+            ) m
+            JOIN gold.dim_standard std ON std.standard_code = m.standard_code
+            WHERE m.rn = 1{subject_where('std.subject')}
+            GROUP BY m.standard_code, std.subject, std.grade_level
+            ORDER BY avg_score DESC
+            """
+        )
+    except Exception as exc:
+        st.error(f"Failed to load standards performance: {exc}")
+        std_perf = pd.DataFrame()
+
+    if not _empty_guard(std_perf, "standards performance"):
+        top3 = std_perf.head(3)
+        bottom3 = std_perf.tail(3).iloc[::-1]  # lowest first
+
+        col_l, col_r = st.columns(2)
+        with col_l:
+            st.markdown("**Highest Mastery**")
+            for _, r in top3.iterrows():
+                gl = r["grade_level"]
+                grade_str = "K" if gl == 0 else str(int(gl)) if pd.notna(gl) else "?"
+                st.markdown(
+                    f"<div class='insight-card success' style='padding:0.6rem 0.8rem;margin-bottom:0.4rem'>"
+                    f"<span style='font-weight:600'>{r['subject']}</span> &middot; "
+                    f"Grade {grade_str} &mdash; "
+                    f"<code>{r['standard_code']}</code> &nbsp; <b>{r['avg_score']}%</b></div>",
+                    unsafe_allow_html=True,
+                )
+        with col_r:
+            st.markdown("**Standards Needing Attention**")
+            for _, r in bottom3.iterrows():
+                gl = r["grade_level"]
+                grade_str = "K" if gl == 0 else str(int(gl)) if pd.notna(gl) else "?"
+                st.markdown(
+                    f"<div class='insight-card danger' style='padding:0.6rem 0.8rem;margin-bottom:0.4rem'>"
+                    f"<span style='font-weight:600'>{r['subject']}</span> &middot; "
+                    f"Grade {grade_str} &mdash; "
+                    f"<code>{r['standard_code']}</code> &nbsp; <b>{r['avg_score']}%</b></div>",
+                    unsafe_allow_html=True,
+                )
+
+    divider()
 
     # ── Explore by School ────────────────────────────────────────────
-    section("Explore by School", "Select a school to drill down")
+    section("Explore by School", "Select a school to drill down into grade and section analytics")
 
     try:
         school_df = query(
@@ -204,51 +382,6 @@ def render_district():
                 nav_district=row["district_name"],
             )
             st.rerun()
-
-    # ── Subject-wise mastery comparison ──────────────────────────────
-    section("Subject Mastery Overview", "Mastery level distribution by subject")
-
-    try:
-        subj_mastery = query(
-            """
-            SELECT std.subject, m.mastery_level, COUNT(*) AS count
-            FROM (
-                SELECT student_id, standard_code, mastery_level,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY student_id, standard_code
-                           ORDER BY assessment_count DESC
-                       ) AS rn
-                FROM gold.fact_student_mastery_daily
-            ) m
-            JOIN gold.dim_standard std ON std.standard_code = m.standard_code
-            WHERE m.rn = 1
-            GROUP BY std.subject, m.mastery_level
-            ORDER BY std.subject, m.mastery_level
-            """
-        )
-    except Exception as exc:
-        st.error(f"Failed to load subject mastery: {exc}")
-        subj_mastery = pd.DataFrame()
-
-    if not _empty_guard(subj_mastery, "subject mastery"):
-        mastery_order = ["Exceeding", "Meeting", "Developing", "Needs Intervention"]
-        subj_mastery["mastery_level"] = pd.Categorical(
-            subj_mastery["mastery_level"], categories=mastery_order, ordered=True
-        )
-        subj_mastery = subj_mastery.sort_values(["subject", "mastery_level"])
-
-        fig_subj = px.bar(
-            subj_mastery,
-            x="subject",
-            y="count",
-            color="mastery_level",
-            barmode="stack",
-            color_discrete_map=MASTERY_COLORS,
-            labels={"count": "Student-Standard Pairs", "subject": "Subject", "mastery_level": "Mastery Level"},
-        )
-        fig_subj.update_layout(height=400, legend=dict(title="Mastery Level"))
-        apply_theme(fig_subj)
-        st.plotly_chart(fig_subj, use_container_width=True)
 
 
 # =====================================================================
