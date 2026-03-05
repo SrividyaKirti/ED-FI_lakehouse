@@ -216,20 +216,23 @@ def inject_css() -> None:
         .section-header {{
             border-left: 4px solid {COLORS["primary"]};
             padding-left: 0.75rem;
+            margin-top: 2rem;
             margin-bottom: 1rem;
         }}
 
         .section-header h3 {{
-            font-size: 1.15rem;
+            font-size: 1.25rem;
             font-weight: 700;
             color: {COLORS["text_primary"]};
             margin: 0;
+            letter-spacing: -0.01em;
         }}
 
         .section-header p {{
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: {COLORS["text_secondary"]};
-            margin: 0.15rem 0 0 0;
+            margin: 0.2rem 0 0 0;
+            opacity: 0.75;
         }}
 
         /* ── Page header ────────────────────────────────────── */
@@ -256,6 +259,22 @@ def inject_css() -> None:
             line-height: 1.6;
             color: {COLORS["text_secondary"]};
             margin-bottom: 1rem;
+        }}
+
+        /* ── Section divider ──────────────────────────────────── */
+        .section-divider {{
+            border: none;
+            border-top: 1px solid #E2E8F0;
+            margin: 2rem 0;
+        }}
+
+        /* ── Inline filter bar ────────────────────────────────── */
+        .filter-bar {{
+            background: {COLORS["surface_alt"]};
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.5rem;
         }}
         </style>
         """,
