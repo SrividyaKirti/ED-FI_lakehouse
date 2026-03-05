@@ -15,6 +15,7 @@ import pandas as pd  # noqa: E402
 from db import query  # noqa: E402
 from components import (  # noqa: E402
     setup_page,
+    inline_filters,
     page_header,
     section,
     narrative,
@@ -27,6 +28,7 @@ from components import (  # noqa: E402
 )
 
 setup_page()
+inline_filters()
 
 page_header(
     "Early Warning & Attendance",
