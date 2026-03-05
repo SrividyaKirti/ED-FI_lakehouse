@@ -7,7 +7,7 @@ Usage (from repo root)::
 
 This produces 10 XML interchange files that the PySpark Bronze-layer parser
 will ingest.  Certain records are intentionally planted with data-quality
-issues (null IDs, invalid references, future dates, grade-level violations)
+issues (null IDs, invalid references, future dates, dangling section refs)
 so the DQ-gate pipeline has something to catch.
 """
 
@@ -46,31 +46,15 @@ GRADE_DESCRIPTORS = {
     3: "Third grade",
     4: "Fourth grade",
     5: "Fifth grade",
-    6: "Sixth grade",
-    7: "Seventh grade",
-    8: "Eighth grade",
-    9: "Ninth grade",
-    10: "Tenth grade",
-    11: "Eleventh grade",
-    12: "Twelfth grade",
 }
 
-# Math course names per grade level
-MATH_COURSES = {
-    0: "Kindergarten Math",
-    1: "Math 1",
-    2: "Math 2",
-    3: "Math 3",
-    4: "Math 4",
-    5: "Math 5",
-    6: "Math 6",
-    7: "Math 7",
-    8: "Pre-Algebra",
-    9: "Algebra I",
-    10: "Geometry",
-    11: "Algebra II",
-    12: "Pre-Calculus",
+# Multi-subject course names per grade level (K-5)
+COURSES = {
+    "Math": {0: "Kindergarten Math", 1: "Math 1", 2: "Math 2", 3: "Math 3", 4: "Math 4", 5: "Math 5"},
+    "ELA": {0: "Kindergarten ELA", 1: "ELA 1", 2: "ELA 2", 3: "ELA 3", 4: "ELA 4", 5: "ELA 5"},
+    "Science": {0: "Science K", 1: "Science 1", 2: "Science 2", 3: "Science 3", 4: "Science 4", 5: "Science 5"},
 }
+SUBJECTS = ["Math", "ELA", "Science"]
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +147,7 @@ def _generate_students(
     ))
 
     for i in range(num_students):
-        grade = rng.randint(0, 12)
+        grade = rng.randint(0, 5)
         student_id = f"STU-{i + 1:05d}"
         first_name = fake.first_name()
         last_name = fake.last_name()
@@ -253,7 +237,7 @@ def _generate_sections(
     rng: random.Random,
     target_sections: int = 400,
 ) -> List[dict]:
-    """Generate Sections.xml — sections distributed across schools and grade bands."""
+    """Generate Sections.xml — sections for all 3 subjects across schools and grade bands."""
     root = _make_root("InterchangeMasterSchedule")
     sections = []
 
@@ -267,37 +251,39 @@ def _generate_sections(
         grade_low = school["grade_band_low"]
         grade_high = school["grade_band_high"]
         num_grades = grade_high - grade_low + 1
-        # Proportional allocation
-        school_sections = max(
+        # Proportional allocation (per subject)
+        school_sections_per_subject = max(
             num_grades,
-            int(target_sections * num_grades / total_grade_slots),
+            int(target_sections * num_grades / (total_grade_slots * len(SUBJECTS))),
         )
 
         for grade in range(grade_low, grade_high + 1):
-            # Multiple sections per grade
-            sections_per_grade = max(1, school_sections // num_grades)
-            for s in range(sections_per_grade):
-                section_counter += 1
-                section_id = f"SEC-{section_counter:05d}"
-                course_name = MATH_COURSES.get(grade, f"Math {grade}")
-                curriculum_version = rng.choice(["A", "B"])
+            for subject in SUBJECTS:
+                # Multiple sections per grade per subject
+                sections_per_grade = max(1, school_sections_per_subject // num_grades)
+                for s in range(sections_per_grade):
+                    section_counter += 1
+                    section_id = f"SEC-{section_counter:05d}"
+                    course_name = COURSES[subject].get(grade, f"{subject} {grade}")
+                    curriculum_version = rng.choice(["A", "B"])
 
-                section_el = _se(root, "Section")
-                _se(section_el, "SectionIdentifier", section_id)
-                course_ref = _se(section_el, "CourseOfferingReference")
-                _se(course_ref, "CourseName", course_name)
-                _se(course_ref, "GradeLevel", str(grade))
-                school_ref = _se(section_el, "SchoolReference")
-                _se(school_ref, "SchoolId", school["school_id"])
-                _se(section_el, "CurriculumVersion", curriculum_version)
+                    section_el = _se(root, "Section")
+                    _se(section_el, "SectionIdentifier", section_id)
+                    course_ref = _se(section_el, "CourseOfferingReference")
+                    _se(course_ref, "CourseName", course_name)
+                    _se(course_ref, "GradeLevel", str(grade))
+                    school_ref = _se(section_el, "SchoolReference")
+                    _se(school_ref, "SchoolId", school["school_id"])
+                    _se(section_el, "CurriculumVersion", curriculum_version)
 
-                sections.append({
-                    "section_id": section_id,
-                    "school_id": school["school_id"],
-                    "grade_level": grade,
-                    "course_name": course_name,
-                    "curriculum_version": curriculum_version,
-                })
+                    sections.append({
+                        "section_id": section_id,
+                        "school_id": school["school_id"],
+                        "grade_level": grade,
+                        "subject": subject,
+                        "course_name": course_name,
+                        "curriculum_version": curriculum_version,
+                    })
 
     _write_tree(root, os.path.join(output_dir, "Sections.xml"))
     return sections
@@ -313,7 +299,6 @@ def _generate_student_school_associations(
 
     Planted issues:
     - 15-20 records with invalid SchoolId (scaled for small datasets)
-    - 5-10 grade-level violations (K-2 students at high school)
     - 5 records with future EntryDate (2027-09-01)
     """
     root = _make_root("InterchangeStudentEnrollment")
@@ -322,7 +307,6 @@ def _generate_student_school_associations(
 
     # Scale planted issues for small datasets
     num_invalid_school = max(2, min(20, int(num * 0.04)))
-    num_grade_violations = max(1, min(10, int(num * 0.02)))
     num_future_dates = max(1, min(5, int(num * 0.02)))
 
     # Pick indices for planted issues (non-overlapping, skip null-id students)
@@ -332,13 +316,10 @@ def _generate_student_school_associations(
     rng.shuffle(valid_indices)
 
     invalid_school_indices = set(valid_indices[:num_invalid_school])
-    grade_violation_indices = set(
-        valid_indices[num_invalid_school:num_invalid_school + num_grade_violations]
-    )
     future_date_indices = set(
         valid_indices[
-            num_invalid_school + num_grade_violations:
-            num_invalid_school + num_grade_violations + num_future_dates
+            num_invalid_school:
+            num_invalid_school + num_future_dates
         ]
     )
 
@@ -349,19 +330,6 @@ def _generate_student_school_associations(
         # Determine school assignment
         if i in invalid_school_indices:
             school_id = "INVALID-SCH-999"
-        elif i in grade_violation_indices and grade <= 2:
-            # Assign K-2 student to high school (grade-level violation)
-            hs = [s for s in schools if s["school_type"] == "High"]
-            school_id = hs[0]["school_id"] if hs else schools[-1]["school_id"]
-        elif i in grade_violation_indices:
-            # If the student isn't K-2, still create a violation: assign to wrong type
-            elem_schools = [s for s in schools if s["school_type"] == "Elementary"]
-            if grade >= 9 and elem_schools:
-                school_id = elem_schools[0]["school_id"]
-            else:
-                # Fall back to normal assignment
-                eligible = _schools_for_grade(grade, schools)
-                school_id = rng.choice(eligible)["school_id"] if eligible else schools[0]["school_id"]
         else:
             eligible = _schools_for_grade(grade, schools)
             if eligible:
@@ -394,7 +362,6 @@ def _generate_student_school_associations(
             "grade_level": grade,
             "entry_date": entry_date,
             "is_invalid_school": i in invalid_school_indices,
-            "is_grade_violation": i in grade_violation_indices,
             "is_future_date": i in future_date_indices,
         })
 
@@ -411,22 +378,22 @@ def _generate_student_section_associations(
 ) -> List[dict]:
     """Generate StudentSectionAssociations.xml with planted dangling references.
 
-    Each student is assigned to one math section in their school for their grade.
-    5 records get a dangling SectionIdentifier (scaled for small datasets).
+    Each student is assigned to one section per subject (3 total: Math, ELA, Science).
+    A small number of student+subject combos get a dangling SectionIdentifier.
     """
     root = _make_root("InterchangeStudentEnrollment")
     student_section_assocs = []
 
-    # Build lookup: (school_id, grade_level) -> list of section_ids
-    section_lookup: Dict[Tuple[str, int], List[str]] = {}
+    # Build lookup: (school_id, grade_level, subject) -> list of section_ids
+    section_lookup: Dict[Tuple[str, int, str], List[str]] = {}
     for sec in sections:
-        key = (sec["school_id"], sec["grade_level"])
+        key = (sec["school_id"], sec["grade_level"], sec["subject"])
         section_lookup.setdefault(key, []).append(sec["section_id"])
 
     num = len(students)
     num_dangling = max(1, min(5, int(num * 0.02)))
 
-    # Pick indices for dangling references
+    # Pick student indices for dangling references (applied to a random subject)
     valid_indices = [
         i for i, a in enumerate(associations)
         if not a["is_invalid_school"]
@@ -435,6 +402,10 @@ def _generate_student_section_associations(
         valid_indices,
         min(num_dangling, len(valid_indices)),
     ))
+    # For each dangling student, pick which subject gets the dangling ref
+    dangling_subjects: Dict[int, str] = {}
+    for idx in dangling_indices:
+        dangling_subjects[idx] = rng.choice(SUBJECTS)
 
     for i, (student, assoc) in enumerate(zip(students, associations)):
         # Skip students with invalid school references (they have no real school)
@@ -445,36 +416,40 @@ def _generate_student_section_associations(
         grade = student["grade_level"]
         student_id = student["student_id"]
 
-        if i in dangling_indices:
-            section_id = "DANGLING-SEC-999"
-        else:
-            key = (school_id, grade)
-            available = section_lookup.get(key, [])
-            if available:
-                section_id = rng.choice(available)
+        for subject in SUBJECTS:
+            is_dangling = (i in dangling_indices and dangling_subjects[i] == subject)
+
+            if is_dangling:
+                section_id = "DANGLING-SEC-999"
             else:
-                # If no exact match, try any section in the school
-                school_secs = [
-                    s["section_id"] for s in sections
-                    if s["school_id"] == school_id
-                ]
-                section_id = rng.choice(school_secs) if school_secs else sections[0]["section_id"]
+                key = (school_id, grade, subject)
+                available = section_lookup.get(key, [])
+                if available:
+                    section_id = rng.choice(available)
+                else:
+                    # If no exact match, try any section for this subject in the school
+                    school_subj_secs = [
+                        s["section_id"] for s in sections
+                        if s["school_id"] == school_id and s["subject"] == subject
+                    ]
+                    section_id = rng.choice(school_subj_secs) if school_subj_secs else sections[0]["section_id"]
 
-        assoc_el = _se(root, "StudentSectionAssociation")
-        stu_ref = _se(assoc_el, "StudentReference")
-        _se(stu_ref, "StudentUniqueId", student_id)
-        sec_ref = _se(assoc_el, "SectionReference")
-        _se(sec_ref, "SectionIdentifier", section_id)
-        sch_ref = _se(sec_ref, "SchoolReference")
-        _se(sch_ref, "SchoolId", school_id)
+            assoc_el = _se(root, "StudentSectionAssociation")
+            stu_ref = _se(assoc_el, "StudentReference")
+            _se(stu_ref, "StudentUniqueId", student_id)
+            sec_ref = _se(assoc_el, "SectionReference")
+            _se(sec_ref, "SectionIdentifier", section_id)
+            sch_ref = _se(sec_ref, "SchoolReference")
+            _se(sch_ref, "SchoolId", school_id)
 
-        student_section_assocs.append({
-            "student_id": student_id,
-            "section_id": section_id,
-            "school_id": school_id,
-            "grade_level": grade,
-            "is_dangling": i in dangling_indices,
-        })
+            student_section_assocs.append({
+                "student_id": student_id,
+                "section_id": section_id,
+                "school_id": school_id,
+                "grade_level": grade,
+                "subject": subject,
+                "is_dangling": is_dangling,
+            })
 
     _write_tree(root, os.path.join(output_dir, "StudentSectionAssociations.xml"))
     return student_section_assocs
@@ -517,34 +492,31 @@ def _generate_student_assessments(
 
     Each assessment has 5 questions aligned to a learning standard.
     For specific standards, clusters of 8-12 students share the same wrong
-    answer pattern (misconception).
+    answer pattern (misconception).  Assessments span Math, ELA, and Science.
     """
     root = _make_root("InterchangeStudentAssessment")
     standards = get_learning_standards()
     misconception_patterns = get_misconception_patterns()
 
-    # Build lookup: grade_level -> list of standards
-    standards_by_grade: Dict[int, List[dict]] = {}
+    # Build lookup: (grade_level, subject) -> list of standards
+    standards_by_grade: Dict[Tuple[int, str], List[dict]] = {}
     for std in standards:
-        standards_by_grade.setdefault(std["grade_level"], []).append(std)
+        key = (std["grade_level"], std["subject"])
+        standards_by_grade.setdefault(key, []).append(std)
 
     # Build misconception lookup: standard_code -> misconception info
     misconception_by_standard: Dict[str, dict] = {
         m["standard_code"]: m for m in misconception_patterns
     }
 
-    # Identify misconception target standards
-    misconception_standard_codes = {
-        "CCSS.MATH.4.OA.A.1",
-        "CCSS.MATH.3.NF.A.1",
-        "CCSS.MATH.4.NF.B.3",
-    }
+    # Identify all misconception target standards (Math + ELA + Science)
+    misconception_standard_codes = set(m["standard_code"] for m in misconception_patterns)
 
-    # Build student-to-section mapping
-    student_to_section: Dict[str, dict] = {}
+    # Build student-to-section mapping: student_id -> {subject -> ssa_dict}
+    student_subjects: Dict[str, Dict[str, dict]] = {}
     for ssa in student_section_assocs:
         if not ssa["is_dangling"]:
-            student_to_section[ssa["student_id"]] = ssa
+            student_subjects.setdefault(ssa["student_id"], {})[ssa["subject"]] = ssa
 
     # Pre-assign misconception clusters: for each target standard,
     # pick 8-12 students in the appropriate grade to share the same wrong answer.
@@ -557,12 +529,14 @@ def _generate_student_assessments(
         if std_info is None:
             continue
         target_grade = std_info["grade_level"]
+        target_subject = std_info["subject"]
         eligible = [
             s["student_id"]
             for s in students
             if s["grade_level"] == target_grade
             and s["student_id"] != ""
-            and s["student_id"] in student_to_section
+            and s["student_id"] in student_subjects
+            and target_subject in student_subjects.get(s["student_id"], {})
         ]
         cluster_size = max(3, min(12, len(eligible)))
         if eligible:
@@ -575,98 +549,130 @@ def _generate_student_assessments(
         mc = misconception_by_standard.get(std_code)
         if mc is None:
             continue
-        # Generate 5 fixed "wrong answers" that the cluster shares
-        if mc["pattern_label"] == "subtraction_instead_of_division":
+        label = mc["pattern_label"]
+        # Math misconceptions
+        if label == "subtraction_instead_of_division":
             misconception_wrong_answers[std_code] = ["3", "5", "2", "7", "4"]
-        elif mc["pattern_label"] == "numerator_denominator_swap":
+        elif label == "numerator_denominator_swap":
             misconception_wrong_answers[std_code] = ["4/3", "5/2", "3/1", "8/5", "7/4"]
-        elif mc["pattern_label"] == "fraction_addition_whole_number":
+        elif label == "fraction_addition_whole_number":
             misconception_wrong_answers[std_code] = ["2/7", "3/9", "2/5", "4/11", "3/7"]
+        elif label == "fraction_division_invert_wrong":
+            misconception_wrong_answers[std_code] = ["8/15", "4/9", "6/7", "2/15", "3/10"]
+        # ELA misconceptions
+        elif label == "main_idea_vs_detail":
+            misconception_wrong_answers[std_code] = ["A", "D", "A", "C", "A"]
+        elif label == "literal_vs_inferential":
+            misconception_wrong_answers[std_code] = ["A", "A", "D", "A", "D"]
+        elif label == "opinion_vs_fact":
+            misconception_wrong_answers[std_code] = ["D", "C", "D", "B", "D"]
+        # Science misconceptions
+        elif label == "plants_eat_soil":
+            misconception_wrong_answers[std_code] = ["A", "D", "A", "B", "A"]
+        elif label == "heavier_falls_faster":
+            misconception_wrong_answers[std_code] = ["D", "B", "D", "A", "D"]
+        elif label == "seasons_distance":
+            misconception_wrong_answers[std_code] = ["B", "A", "B", "C", "B"]
         else:
             misconception_wrong_answers[std_code] = ["wrong1", "wrong2", "wrong3", "wrong4", "wrong5"]
 
     # Correct answer templates per standard (for generating items)
     def _correct_answers_for_standard(std_code: str) -> List[str]:
         """Return 5 plausible correct answers for assessment items."""
-        if "OA" in std_code:
-            return ["12", "8", "15", "24", "6"]
-        elif "NF" in std_code:
-            return ["3/4", "2/5", "1/3", "5/8", "4/7"]
-        elif "NBT" in std_code:
-            return ["45", "78", "120", "93", "56"]
-        elif "CC" in std_code:
-            return ["10", "20", "5", "15", "8"]
+        # Math standards
+        if std_code.startswith("CCSS.MATH"):
+            if "OA" in std_code:
+                return ["12", "8", "15", "24", "6"]
+            elif "NF" in std_code:
+                return ["3/4", "2/5", "1/3", "5/8", "4/7"]
+            elif "NBT" in std_code:
+                return ["45", "78", "120", "93", "56"]
+            elif "CC" in std_code:
+                return ["10", "20", "5", "15", "8"]
+            return ["A", "B", "C", "D", "A"]
+        # ELA standards
+        elif std_code.startswith("CCSS.ELA"):
+            return ["B", "C", "A", "D", "B"]
+        # Science standards
+        elif std_code.startswith("NGSS"):
+            return ["C", "A", "B", "D", "C"]
         return ["A", "B", "C", "D", "A"]
 
     assessment_counter = 0
     for student in students:
-        if student["student_id"] == "" or student["student_id"] not in student_to_section:
+        if student["student_id"] == "" or student["student_id"] not in student_subjects:
             continue
 
         grade = student["grade_level"]
-        grade_standards = standards_by_grade.get(grade, [])
-        if not grade_standards:
-            # Use nearest lower grade's standards
-            for g in range(grade - 1, -1, -1):
-                grade_standards = standards_by_grade.get(g, [])
-                if grade_standards:
-                    break
-        if not grade_standards:
-            continue
+        enrolled_subjects = student_subjects[student["student_id"]]
 
-        # Pick 1-2 standards for this student's assessment
-        num_assessments = min(len(grade_standards), rng.randint(1, 2))
-        assessed_standards = rng.sample(grade_standards, num_assessments)
+        for subject in SUBJECTS:
+            if subject not in enrolled_subjects:
+                continue
 
-        for std in assessed_standards:
-            assessment_counter += 1
-            std_code = std["standard_code"]
+            grade_subject_standards = standards_by_grade.get((grade, subject), [])
+            if not grade_subject_standards:
+                # Use nearest lower grade's standards for this subject
+                for g in range(grade - 1, -1, -1):
+                    grade_subject_standards = standards_by_grade.get((g, subject), [])
+                    if grade_subject_standards:
+                        break
+            if not grade_subject_standards:
+                continue
 
-            assessment_el = _se(root, "StudentAssessment")
-            _se(assessment_el, "AssessmentIdentifier", f"ASMT-{assessment_counter:06d}")
-            stu_ref = _se(assessment_el, "StudentReference")
-            _se(stu_ref, "StudentUniqueId", student["student_id"])
-            _se(assessment_el, "AssessmentTitle", f"Math Assessment - {std['domain']}")
-            _se(assessment_el, "StandardCode", std_code)
-            _se(assessment_el, "GradeLevel", str(grade))
+            # Pick 1-2 standards for this student's assessment in this subject
+            num_assessments = min(len(grade_subject_standards), rng.randint(1, 2))
+            assessed_standards = rng.sample(grade_subject_standards, num_assessments)
 
-            # Overall score
-            score = max(0, min(100, int(rng.gauss(72, 15))))
-            _se(assessment_el, "ScoreResult", str(score))
+            for std in assessed_standards:
+                assessment_counter += 1
+                std_code = std["standard_code"]
 
-            correct_answers = _correct_answers_for_standard(std_code)
+                assessment_el = _se(root, "StudentAssessment")
+                _se(assessment_el, "AssessmentIdentifier", f"ASMT-{assessment_counter:06d}")
+                stu_ref = _se(assessment_el, "StudentReference")
+                _se(stu_ref, "StudentUniqueId", student["student_id"])
+                _se(assessment_el, "AssessmentTitle", f"{subject} Assessment - {std['domain']}")
+                _se(assessment_el, "StandardCode", std_code)
+                _se(assessment_el, "GradeLevel", str(grade))
 
-            # Check if this student is in a misconception cluster for this standard
-            in_cluster = (
-                std_code in eligible_by_standard
-                and student["student_id"] in eligible_by_standard[std_code]
-            )
+                # Overall score
+                score = max(0, min(100, int(rng.gauss(72, 15))))
+                _se(assessment_el, "ScoreResult", str(score))
 
-            mc_info = misconception_by_standard.get(std_code)
+                correct_answers = _correct_answers_for_standard(std_code)
 
-            # Generate 5 items
-            for q_idx in range(5):
-                item_el = _se(assessment_el, "StudentAssessmentItem")
-                _se(item_el, "QuestionNumber", str(q_idx + 1))
-                _se(item_el, "LearningStandardCode", std_code)
-                _se(item_el, "CorrectAnswer", correct_answers[q_idx])
+                # Check if this student is in a misconception cluster for this standard
+                in_cluster = (
+                    std_code in eligible_by_standard
+                    and student["student_id"] in eligible_by_standard[std_code]
+                )
 
-                if in_cluster and mc_info:
-                    # This student is in the misconception cluster:
-                    # give the shared wrong answer for this question
-                    wrong = misconception_wrong_answers[std_code][q_idx]
-                    _se(item_el, "StudentAnswer", wrong)
-                    _se(item_el, "MisconceptionIndicator", mc_info["pattern_label"])
-                else:
-                    # Random answer: 70% chance correct, 30% wrong
-                    if rng.random() < 0.70:
-                        _se(item_el, "StudentAnswer", correct_answers[q_idx])
-                        # No misconception indicator for correct answers
+                mc_info = misconception_by_standard.get(std_code)
+
+                # Generate 5 items
+                for q_idx in range(5):
+                    item_el = _se(assessment_el, "StudentAssessmentItem")
+                    _se(item_el, "QuestionNumber", str(q_idx + 1))
+                    _se(item_el, "LearningStandardCode", std_code)
+                    _se(item_el, "CorrectAnswer", correct_answers[q_idx])
+
+                    if in_cluster and mc_info and std_code in misconception_wrong_answers:
+                        # This student is in the misconception cluster:
+                        # give the shared wrong answer for this question
+                        wrong = misconception_wrong_answers[std_code][q_idx]
+                        _se(item_el, "StudentAnswer", wrong)
+                        _se(item_el, "MisconceptionIndicator", mc_info["pattern_label"])
                     else:
-                        # Random wrong answer (not matching misconception pattern)
-                        wrong_val = str(rng.randint(1, 50))
-                        _se(item_el, "StudentAnswer", wrong_val)
-                        # No misconception indicator for random wrong answers
+                        # Random answer: 70% chance correct, 30% wrong
+                        if rng.random() < 0.70:
+                            _se(item_el, "StudentAnswer", correct_answers[q_idx])
+                            # No misconception indicator for correct answers
+                        else:
+                            # Random wrong answer (not matching misconception pattern)
+                            wrong_val = str(rng.randint(1, 50))
+                            _se(item_el, "StudentAnswer", wrong_val)
+                            # No misconception indicator for random wrong answers
 
     _write_tree(root, os.path.join(output_dir, "StudentAssessments.xml"))
 
@@ -736,6 +742,7 @@ def _generate_learning_standards(output_dir: str) -> None:
         _se(std_el, "StandardDescription", std["standard_description"])
         _se(std_el, "Domain", std["domain"])
         _se(std_el, "GradeLevel", str(std["grade_level"]))
+        _se(std_el, "Subject", std["subject"])
         if std["prerequisite_standard_code"]:
             _se(std_el, "PrerequisiteStandardCode", std["prerequisite_standard_code"])
 

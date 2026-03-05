@@ -1,10 +1,16 @@
-"""Executive Overview — flagship landing page for the Ed-Fi Lakehouse dashboard."""
+"""Executive Overview — drill-down hub for the Ed-Fi Lakehouse dashboard.
+
+Levels: district -> school -> grade -> section -> student
+Each level shows KPIs, charts, and a table to drill deeper.
+"""
 
 import sys
 import os
 
 import streamlit as st
+import plotly.express as px
 import plotly.graph_objects as go
+import pandas as pd
 
 # Ensure the streamlit_app directory is on the import path so that
 # ``components`` and ``db`` resolve correctly regardless of cwd.
@@ -20,254 +26,820 @@ from components import (  # noqa: E402
     insight_card,
     stat_row,
     apply_theme,
+    breadcrumb,
+    back_button,
+    drill_into,
+    subject_where,
+    school_where,
+    district_where,
     MASTERY_COLORS,
-    LAYER_COLORS,
+    RISK_COLORS,
+    DISTRICT_COLORS,
+    SUBJECT_COLORS,
 )
 from db import query  # noqa: E402
 
 setup_page()
 
-# ── Page header ─────────────────────────────────────────────────────
-page_header(
-    "Executive Overview",
-    "Real-time analytics across two interoperable school districts",
-)
+level = st.session_state.get("nav_level", "district")
 
-# ── KPI metrics ─────────────────────────────────────────────────────
-try:
-    students = int(query("SELECT COUNT(*) AS n FROM gold.dim_student").iloc[0, 0])
-    schools = int(
-        query("SELECT COUNT(DISTINCT school_id) AS n FROM gold.dim_school").iloc[0, 0]
+
+# ── Helpers ────────────────────────────────────────────────────────────
+def _grade_label(g) -> str:
+    """Convert numeric grade to readable label."""
+    if g is None or pd.isna(g):
+        return "Unknown"
+    g = int(g)
+    return "Kindergarten" if g == 0 else f"Grade {g}"
+
+
+def _safe_pct(num, denom) -> float:
+    """Safe percentage calculation."""
+    if denom is None or denom == 0:
+        return 0.0
+    return round(num / denom * 100, 1)
+
+
+def _empty_guard(df: pd.DataFrame, label: str) -> bool:
+    """Show warning and return True if the dataframe is empty."""
+    if df is None or df.empty:
+        st.warning(f"No data available for {label}.")
+        return True
+    return False
+
+
+# =====================================================================
+# DISTRICT LEVEL (default)
+# =====================================================================
+def render_district():
+    """Top-level overview across all districts."""
+    page_header(
+        "Executive Overview",
+        "Drill-down analytics across two interoperable school districts",
     )
-    standards = int(
-        query(
-            "SELECT COUNT(DISTINCT standard_code) AS n FROM gold.dim_standard"
-        ).iloc[0, 0]
-    )
-    quarantined = int(
-        query("SELECT COUNT(*) AS n FROM gold.fact_dq_quarantine_log").iloc[0, 0]
-    )
-    pass_rate = round(
-        (1 - quarantined / max(students + quarantined, 1)) * 100, 1
-    )
-    at_risk = int(
-        query(
-            "SELECT COUNT(*) AS n FROM gold.agg_early_warning "
-            "WHERE risk_level IN ('High', 'Medium')"
-        ).iloc[0, 0]
-    )
-except Exception as exc:
-    st.error(f"Failed to load KPI data: {exc}")
-    st.stop()
 
-stat_row(
-    [
-        {"label": "Total Students", "value": f"{students:,}"},
-        {"label": "Schools", "value": f"{schools:,}"},
-        {"label": "Standards Tracked", "value": f"{standards:,}"},
-        {"label": "DQ Pass Rate", "value": f"{pass_rate}%"},
-        {"label": "At-Risk Students", "value": f"{at_risk:,}"},
-    ]
-)
-
-# ── "What This Project Demonstrates" ───────────────────────────────
-insight_card(
-    "What This Project Demonstrates",
-    "A unified analytics layer built on two incompatible data standards "
-    "— Ed-Fi XML and OneRoster CSV — harmonized through a Bronze→Silver→Gold "
-    "lakehouse pipeline. The dashboards present meaningful, actionable analytics "
-    "on top of this unified layer.",
-    severity="info",
-)
-
-# ── Mastery Distribution (donut chart) ──────────────────────────────
-section("Mastery Distribution", "How students perform across all standards")
-
-narrative(
-    "Each student-standard pair is counted once using the record with the "
-    "highest assessment count. The donut chart below shows the overall "
-    "distribution of mastery levels across both districts."
-)
-
-try:
-    mastery_df = query(
-        """
-        SELECT mastery_level, COUNT(*) AS count
-        FROM (
-            SELECT student_id, standard_code, mastery_level,
-                   ROW_NUMBER() OVER (
-                       PARTITION BY student_id, standard_code
-                       ORDER BY assessment_count DESC
-                   ) AS rn
-            FROM gold.fact_student_mastery_daily
-        ) sub
-        WHERE rn = 1
-        GROUP BY mastery_level
-        """
-    )
-except Exception as exc:
-    st.error(f"Failed to load mastery data: {exc}")
-    st.stop()
-
-# Build the donut chart with consistent color ordering
-mastery_order = ["Exceeding", "Meeting", "Developing", "Needs Intervention"]
-mastery_df = mastery_df.set_index("mastery_level").reindex(mastery_order).reset_index()
-mastery_df = mastery_df.dropna(subset=["count"])
-
-fig_mastery = go.Figure(
-    go.Pie(
-        labels=mastery_df["mastery_level"],
-        values=mastery_df["count"],
-        hole=0.55,
-        marker=dict(
-            colors=[MASTERY_COLORS[lvl] for lvl in mastery_df["mastery_level"]]
-        ),
-        textinfo="label+percent",
-        hovertemplate="%{label}: %{value:,} students (%{percent})<extra></extra>",
-    )
-)
-fig_mastery.update_layout(title_text="Mastery Level Distribution", height=420)
-apply_theme(fig_mastery)
-st.plotly_chart(fig_mastery, use_container_width=True)
-
-# Dynamic insight from mastery data
-total_mastery = int(mastery_df["count"].sum())
-exceeding_count = int(
-    mastery_df.loc[mastery_df["mastery_level"] == "Exceeding", "count"].values[0]
-)
-intervention_count = int(
-    mastery_df.loc[
-        mastery_df["mastery_level"] == "Needs Intervention", "count"
-    ].values[0]
-)
-exceeding_pct = round(exceeding_count / max(total_mastery, 1) * 100, 1)
-intervention_pct = round(intervention_count / max(total_mastery, 1) * 100, 1)
-
-insight_card(
-    "Mastery Snapshot",
-    f"<b>{exceeding_pct}%</b> of student-standard pairs are at the "
-    f"<em>Exceeding</em> level, while <b>{intervention_pct}%</b> require "
-    f"intervention — representing {intervention_count:,} student-standard "
-    f"combinations that may need targeted support.",
-    severity="success" if intervention_pct < 10 else "warning",
-)
-
-# ── Pipeline Health (horizontal bar chart) ──────────────────────────
-section("Pipeline Health", "Record flow through the lakehouse layers")
-
-narrative(
-    "Data flows through three layers: <b>Bronze</b> (raw ingestion), "
-    "<b>Silver</b> (cleaned and standardized by PySpark), and <b>Gold</b> "
-    "(analytics-ready tables built by dbt). Records that fail data-quality "
-    "checks are quarantined rather than silently dropped."
-)
-
-try:
-    # Silver Ed-Fi tables
-    silver_edfi_tables = [
-        "students", "schools", "sections", "attendance",
-        "assessment_results", "enrollments", "grades", "standards",
-        "staff", "section_associations",
-    ]
-    silver_edfi_total = 0
-    for tbl in silver_edfi_tables:
-        count = int(
-            query(f"SELECT COUNT(*) AS n FROM silver_edfi.{tbl}").iloc[0, 0]
+    # ── KPI row ──────────────────────────────────────────────────────
+    try:
+        subj_filter = subject_where("subject")
+        students = int(query("SELECT COUNT(*) AS n FROM gold.dim_student").iloc[0, 0])
+        schools = int(
+            query("SELECT COUNT(DISTINCT school_id) AS n FROM gold.dim_school").iloc[0, 0]
         )
-        silver_edfi_total += count
-
-    # Silver OneRoster tables
-    silver_or_tables = [
-        "users", "orgs", "classes", "courses", "enrollments",
-        "results", "academic_sessions", "demographics", "line_items",
-    ]
-    silver_or_total = 0
-    for tbl in silver_or_tables:
-        count = int(
-            query(f"SELECT COUNT(*) AS n FROM silver_oneroster.{tbl}").iloc[0, 0]
+        standards = int(
+            query(
+                f"SELECT COUNT(DISTINCT standard_code) AS n FROM gold.dim_standard WHERE 1=1{subj_filter}"
+            ).iloc[0, 0]
         )
-        silver_or_total += count
+        subjects = int(
+            query("SELECT COUNT(DISTINCT subject) AS n FROM gold.dim_standard").iloc[0, 0]
+        )
+        quarantined = int(
+            query("SELECT COUNT(*) AS n FROM gold.fact_dq_quarantine_log").iloc[0, 0]
+        )
+        total_processed = students + quarantined
+        pass_rate = _safe_pct(total_processed - quarantined, total_processed)
+    except Exception as exc:
+        st.error(f"Failed to load KPI data: {exc}")
+        st.stop()
 
-    silver_total = silver_edfi_total + silver_or_total
-
-    # Gold tables (excluding quarantine log)
-    gold_tables = [
-        "dim_student", "dim_school", "dim_standard", "dim_section",
-        "dim_misconception_pattern", "fact_student_mastery_daily",
-        "fact_assessment_responses", "fact_attendance_daily",
-        "agg_early_warning", "agg_district_comparison",
-    ]
-    gold_total = 0
-    for tbl in gold_tables:
-        count = int(query(f"SELECT COUNT(*) AS n FROM gold.{tbl}").iloc[0, 0])
-        gold_total += count
-
-except Exception as exc:
-    st.error(f"Failed to load pipeline metrics: {exc}")
-    st.stop()
-
-layers = ["Silver", "Gold", "Quarantined"]
-counts = [silver_total, gold_total, quarantined]
-colors = [LAYER_COLORS["Silver"], LAYER_COLORS["Gold"], LAYER_COLORS["Quarantined"]]
-
-fig_pipeline = go.Figure(
-    go.Bar(
-        y=layers,
-        x=counts,
-        orientation="h",
-        marker=dict(color=colors),
-        text=[f"{c:,}" for c in counts],
-        textposition="outside",
-        hovertemplate="%{y}: %{x:,} records<extra></extra>",
+    stat_row(
+        [
+            {"label": "Total Students", "value": f"{students:,}"},
+            {"label": "Schools", "value": f"{schools:,}"},
+            {"label": "Standards Tracked", "value": f"{standards:,}"},
+            {"label": "Subjects", "value": f"{subjects:,}"},
+            {"label": "DQ Pass Rate", "value": f"{pass_rate}%"},
+        ]
     )
-)
-fig_pipeline.update_layout(
-    title_text="Records per Pipeline Layer",
-    xaxis_title="Record Count",
-    yaxis_title="",
-    height=300,
-    yaxis=dict(autorange="reversed"),
-)
-apply_theme(fig_pipeline)
-st.plotly_chart(fig_pipeline, use_container_width=True)
 
-insight_card(
-    "Pipeline Throughput",
-    f"<b>{pass_rate}%</b> of ingested records passed data-quality checks. "
-    f"Only <b>{quarantined:,}</b> records were quarantined out of "
-    f"{students + quarantined:,} student records processed.",
-    severity="success" if pass_rate >= 95 else "warning",
-)
+    # ── District comparison: avg mastery per subject ─────────────────
+    section("District Comparison", "Average mastery score by subject across districts")
 
-# ── Architecture at a Glance (Graphviz DOT diagram) ────────────────
-section("Architecture at a Glance")
+    try:
+        district_df = query(
+            f"""
+            SELECT district_name, subject,
+                   ROUND(AVG(avg_score), 1) AS avg_score
+            FROM gold.agg_district_comparison
+            WHERE 1=1{subject_where('subject')}
+            GROUP BY district_name, subject
+            ORDER BY subject, district_name
+            """
+        )
+    except Exception as exc:
+        st.error(f"Failed to load district comparison: {exc}")
+        district_df = pd.DataFrame()
 
-dot_source = """
-digraph architecture {
-    rankdir=LR;
-    node [shape=box, style="filled,rounded", fontname="DM Sans, sans-serif",
-          fontsize=11, fontcolor="#1A202C", penwidth=0];
-    edge [color="#A0AEC0", arrowsize=0.7];
+    if not _empty_guard(district_df, "district comparison"):
+        fig_dist = px.bar(
+            district_df,
+            x="subject",
+            y="avg_score",
+            color="district_name",
+            barmode="group",
+            color_discrete_map=DISTRICT_COLORS,
+            labels={"avg_score": "Avg Score", "subject": "Subject", "district_name": "District"},
+            text="avg_score",
+        )
+        fig_dist.update_traces(texttemplate="%{text:.1f}", textposition="outside")
+        fig_dist.update_layout(
+            height=380,
+            yaxis=dict(range=[0, 105]),
+            legend=dict(title="District"),
+        )
+        apply_theme(fig_dist)
+        st.plotly_chart(fig_dist, use_container_width=True)
 
-    // Source nodes
-    edfi  [label="Ed-Fi XML",      fillcolor="#E8F5E9"];
-    oneroster [label="OneRoster CSV", fillcolor="#E8F5E9"];
+    # ── Explore by School ────────────────────────────────────────────
+    section("Explore by School", "Select a school to drill down")
 
-    // Processing nodes
-    pyspark [label="PySpark\\n(Bronze → Silver)", fillcolor="#FFF3E0"];
-    dbt     [label="dbt\\n(Silver → Gold)",       fillcolor="#FFF3E0"];
+    try:
+        school_df = query(
+            f"""
+            SELECT
+                sch.school_id,
+                sch.school_name,
+                sch.district_name,
+                sch.school_type,
+                COUNT(DISTINCT stu.student_id) AS students,
+                ROUND(AVG(m.max_score_to_date), 1) AS avg_score
+            FROM gold.dim_school sch
+            LEFT JOIN gold.dim_student stu ON stu.school_id = sch.school_id
+            LEFT JOIN (
+                SELECT student_id, standard_code, max_score_to_date,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+            ) m ON m.student_id = stu.student_id AND m.rn = 1
+            LEFT JOIN gold.dim_standard std ON std.standard_code = m.standard_code
+            WHERE 1=1{subject_where('std.subject')}
+            GROUP BY sch.school_id, sch.school_name, sch.district_name, sch.school_type
+            ORDER BY sch.district_name, sch.school_name
+            """
+        )
+    except Exception as exc:
+        st.error(f"Failed to load school data: {exc}")
+        school_df = pd.DataFrame()
 
-    // Output nodes
-    gold [label="Gold Layer\\n(DuckDB)", fillcolor="#F3E5F5"];
-    app  [label="Streamlit\\nDashboard", fillcolor="#E3F2FD"];
+    if not _empty_guard(school_df, "schools"):
+        display_df = school_df[["school_name", "district_name", "school_type", "students", "avg_score"]].copy()
+        display_df.columns = ["School", "District", "Type", "Students", "Avg Score"]
 
-    // Edges
-    edfi      -> pyspark;
-    oneroster -> pyspark;
-    pyspark   -> dbt;
-    dbt       -> gold;
-    gold      -> app;
+        selected_school = st.selectbox(
+            "Select a school to explore",
+            options=["-- Choose --"] + school_df["school_name"].tolist(),
+            key="exec_school_select",
+        )
+
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+        if selected_school != "-- Choose --":
+            row = school_df[school_df["school_name"] == selected_school].iloc[0]
+            drill_into(
+                "school",
+                nav_school_id=row["school_id"],
+                nav_school_name=row["school_name"],
+                nav_district=row["district_name"],
+            )
+            st.rerun()
+
+    # ── Subject-wise mastery comparison ──────────────────────────────
+    section("Subject Mastery Overview", "Mastery level distribution by subject")
+
+    try:
+        subj_mastery = query(
+            """
+            SELECT std.subject, m.mastery_level, COUNT(*) AS count
+            FROM (
+                SELECT student_id, standard_code, mastery_level,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+            ) m
+            JOIN gold.dim_standard std ON std.standard_code = m.standard_code
+            WHERE m.rn = 1
+            GROUP BY std.subject, m.mastery_level
+            ORDER BY std.subject, m.mastery_level
+            """
+        )
+    except Exception as exc:
+        st.error(f"Failed to load subject mastery: {exc}")
+        subj_mastery = pd.DataFrame()
+
+    if not _empty_guard(subj_mastery, "subject mastery"):
+        mastery_order = ["Exceeding", "Meeting", "Developing", "Needs Intervention"]
+        subj_mastery["mastery_level"] = pd.Categorical(
+            subj_mastery["mastery_level"], categories=mastery_order, ordered=True
+        )
+        subj_mastery = subj_mastery.sort_values(["subject", "mastery_level"])
+
+        fig_subj = px.bar(
+            subj_mastery,
+            x="subject",
+            y="count",
+            color="mastery_level",
+            barmode="stack",
+            color_discrete_map=MASTERY_COLORS,
+            labels={"count": "Student-Standard Pairs", "subject": "Subject", "mastery_level": "Mastery Level"},
+        )
+        fig_subj.update_layout(height=400, legend=dict(title="Mastery Level"))
+        apply_theme(fig_subj)
+        st.plotly_chart(fig_subj, use_container_width=True)
+
+
+# =====================================================================
+# SCHOOL LEVEL
+# =====================================================================
+def render_school():
+    """School-level view: KPIs, grade performance, drill into grades."""
+    breadcrumb()
+    back_button()
+
+    school_id = st.session_state.get("nav_school_id")
+    school_name = st.session_state.get("nav_school_name", "School")
+
+    page_header(school_name, "School performance overview")
+
+    # ── KPI row ──────────────────────────────────────────────────────
+    try:
+        stu_count = int(
+            query(
+                f"SELECT COUNT(DISTINCT student_id) AS n FROM gold.dim_student WHERE school_id = '{school_id}'"
+            ).iloc[0, 0]
+        )
+        grades_served = int(
+            query(
+                f"SELECT COUNT(DISTINCT grade_level) AS n FROM gold.dim_student "
+                f"WHERE school_id = '{school_id}' AND grade_level IS NOT NULL"
+            ).iloc[0, 0]
+        )
+        avg_mastery = query(
+            f"""
+            SELECT ROUND(AVG(m.max_score_to_date), 1) AS avg_score
+            FROM gold.dim_student stu
+            JOIN (
+                SELECT student_id, max_score_to_date,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+            ) m ON m.student_id = stu.student_id AND m.rn = 1
+            WHERE stu.school_id = '{school_id}'
+            """
+        ).iloc[0, 0]
+        avg_mastery = round(float(avg_mastery), 1) if avg_mastery is not None and not pd.isna(avg_mastery) else 0.0
+
+        att_df = query(
+            f"""
+            SELECT
+                ROUND(
+                    SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) * 100.0
+                    / NULLIF(COUNT(*), 0), 1
+                ) AS att_rate
+            FROM gold.fact_attendance_daily
+            WHERE school_id = '{school_id}'
+            """
+        )
+        att_rate = round(float(att_df.iloc[0, 0]), 1) if att_df.iloc[0, 0] is not None and not pd.isna(att_df.iloc[0, 0]) else 0.0
+    except Exception as exc:
+        st.error(f"Failed to load school KPIs: {exc}")
+        st.stop()
+
+    stat_row(
+        [
+            {"label": "Students", "value": f"{stu_count:,}"},
+            {"label": "Grades Served", "value": str(grades_served)},
+            {"label": "Avg Mastery", "value": f"{avg_mastery}"},
+            {"label": "Attendance Rate", "value": f"{att_rate}%"},
+        ]
+    )
+
+    # ── Grade performance chart ──────────────────────────────────────
+    section("Performance by Grade", "Average mastery score per grade and subject")
+
+    try:
+        grade_perf = query(
+            f"""
+            SELECT
+                stu.grade_level,
+                std.subject,
+                ROUND(AVG(m.max_score_to_date), 1) AS avg_score
+            FROM gold.dim_student stu
+            JOIN (
+                SELECT student_id, standard_code, max_score_to_date,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+            ) m ON m.student_id = stu.student_id AND m.rn = 1
+            JOIN gold.dim_standard std ON std.standard_code = m.standard_code
+            WHERE stu.school_id = '{school_id}'
+              AND stu.grade_level IS NOT NULL
+              {subject_where('std.subject')}
+            GROUP BY stu.grade_level, std.subject
+            ORDER BY stu.grade_level, std.subject
+            """
+        )
+    except Exception as exc:
+        st.error(f"Failed to load grade performance: {exc}")
+        grade_perf = pd.DataFrame()
+
+    if not _empty_guard(grade_perf, "grade performance"):
+        grade_perf["grade_label"] = grade_perf["grade_level"].apply(_grade_label)
+        fig_grade = px.bar(
+            grade_perf,
+            x="grade_label",
+            y="avg_score",
+            color="subject",
+            barmode="group",
+            color_discrete_map=SUBJECT_COLORS,
+            labels={"avg_score": "Avg Score", "grade_label": "Grade", "subject": "Subject"},
+            text="avg_score",
+        )
+        fig_grade.update_traces(texttemplate="%{text:.1f}", textposition="outside")
+        fig_grade.update_layout(
+            height=400,
+            yaxis=dict(range=[0, 105]),
+            xaxis=dict(categoryorder="array", categoryarray=[
+                _grade_label(g) for g in sorted(grade_perf["grade_level"].unique())
+            ]),
+        )
+        apply_theme(fig_grade)
+        st.plotly_chart(fig_grade, use_container_width=True)
+
+    # ── Drill into Grade ─────────────────────────────────────────────
+    section("Drill into Grade", "Select a grade to explore further")
+
+    try:
+        grade_table = query(
+            f"""
+            SELECT
+                stu.grade_level,
+                COUNT(DISTINCT stu.student_id) AS students,
+                ROUND(AVG(m.max_score_to_date), 1) AS avg_score
+            FROM gold.dim_student stu
+            LEFT JOIN (
+                SELECT student_id, max_score_to_date,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+            ) m ON m.student_id = stu.student_id AND m.rn = 1
+            WHERE stu.school_id = '{school_id}'
+              AND stu.grade_level IS NOT NULL
+            GROUP BY stu.grade_level
+            ORDER BY stu.grade_level
+            """
+        )
+    except Exception as exc:
+        st.error(f"Failed to load grade table: {exc}")
+        grade_table = pd.DataFrame()
+
+    if not _empty_guard(grade_table, "grades"):
+        grade_table["grade_label"] = grade_table["grade_level"].apply(_grade_label)
+        display_gt = grade_table[["grade_label", "students", "avg_score"]].copy()
+        display_gt.columns = ["Grade", "Students", "Avg Score"]
+
+        selected_grade = st.selectbox(
+            "Select a grade",
+            options=["-- Choose --"] + grade_table["grade_label"].tolist(),
+            key="exec_grade_select",
+        )
+
+        st.dataframe(display_gt, use_container_width=True, hide_index=True)
+
+        if selected_grade != "-- Choose --":
+            row = grade_table[grade_table["grade_label"] == selected_grade].iloc[0]
+            drill_into(
+                "grade",
+                nav_grade=int(row["grade_level"]),
+            )
+            st.rerun()
+
+
+# =====================================================================
+# GRADE LEVEL
+# =====================================================================
+def render_grade():
+    """Grade-level view: KPIs, section comparison, drill into sections."""
+    breadcrumb()
+    back_button()
+
+    school_id = st.session_state.get("nav_school_id")
+    grade = st.session_state.get("nav_grade")
+    grade_label = _grade_label(grade)
+
+    page_header(grade_label, f"Performance within {st.session_state.get('nav_school_name', 'school')}")
+
+    # ── KPI row ──────────────────────────────────────────────────────
+    try:
+        stu_count = int(
+            query(
+                f"SELECT COUNT(DISTINCT student_id) AS n FROM gold.dim_student "
+                f"WHERE school_id = '{school_id}' AND grade_level = {grade}"
+            ).iloc[0, 0]
+        )
+        sec_count = int(
+            query(
+                f"SELECT COUNT(DISTINCT section_id) AS n FROM gold.dim_section "
+                f"WHERE school_id = '{school_id}' AND grade_level = {grade}"
+            ).iloc[0, 0]
+        )
+        avg_score_df = query(
+            f"""
+            SELECT ROUND(AVG(m.max_score_to_date), 1) AS avg_score
+            FROM gold.dim_student stu
+            JOIN (
+                SELECT student_id, max_score_to_date,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+            ) m ON m.student_id = stu.student_id AND m.rn = 1
+            WHERE stu.school_id = '{school_id}' AND stu.grade_level = {grade}
+            """
+        )
+        avg_score = round(float(avg_score_df.iloc[0, 0]), 1) if avg_score_df.iloc[0, 0] is not None and not pd.isna(avg_score_df.iloc[0, 0]) else 0.0
+    except Exception as exc:
+        st.error(f"Failed to load grade KPIs: {exc}")
+        st.stop()
+
+    stat_row(
+        [
+            {"label": "Students", "value": f"{stu_count:,}"},
+            {"label": "Sections", "value": f"{sec_count:,}"},
+            {"label": "Avg Score", "value": f"{avg_score}"},
+        ]
+    )
+
+    # ── Section comparison chart ─────────────────────────────────────
+    section("Section Comparison", "Average mastery score by section")
+
+    try:
+        sec_perf = query(
+            f"""
+            SELECT
+                sec.section_id,
+                sec.course_name,
+                sec.subject,
+                ROUND(AVG(m.max_score_to_date), 1) AS avg_score,
+                COUNT(DISTINCT stu.student_id) AS students
+            FROM gold.dim_section sec
+            JOIN gold.dim_student stu ON stu.school_id = sec.school_id
+                AND stu.grade_level = sec.grade_level
+            JOIN (
+                SELECT student_id, standard_code, max_score_to_date,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+            ) m ON m.student_id = stu.student_id AND m.rn = 1
+            JOIN gold.dim_standard std ON std.standard_code = m.standard_code
+                AND std.subject = sec.subject
+            WHERE sec.school_id = '{school_id}'
+              AND sec.grade_level = {grade}
+              {subject_where('sec.subject')}
+            GROUP BY sec.section_id, sec.course_name, sec.subject
+            ORDER BY sec.course_name
+            """
+        )
+    except Exception as exc:
+        st.error(f"Failed to load section performance: {exc}")
+        sec_perf = pd.DataFrame()
+
+    if not _empty_guard(sec_perf, "section performance"):
+        fig_sec = px.bar(
+            sec_perf,
+            x="course_name",
+            y="avg_score",
+            color="subject",
+            color_discrete_map=SUBJECT_COLORS,
+            labels={"avg_score": "Avg Score", "course_name": "Section", "subject": "Subject"},
+            text="avg_score",
+        )
+        fig_sec.update_traces(texttemplate="%{text:.1f}", textposition="outside")
+        fig_sec.update_layout(
+            height=400,
+            yaxis=dict(range=[0, 105]),
+            xaxis=dict(tickangle=-45),
+        )
+        apply_theme(fig_sec)
+        st.plotly_chart(fig_sec, use_container_width=True)
+
+    # ── Drill into Section ───────────────────────────────────────────
+    section("Drill into Section", "Select a section to explore")
+
+    try:
+        sec_table = query(
+            f"""
+            SELECT
+                sec.section_id,
+                sec.course_name,
+                sec.subject,
+                sec.curriculum_version,
+                COUNT(DISTINCT stu.student_id) AS students
+            FROM gold.dim_section sec
+            LEFT JOIN gold.dim_student stu ON stu.school_id = sec.school_id
+                AND stu.grade_level = sec.grade_level
+            WHERE sec.school_id = '{school_id}'
+              AND sec.grade_level = {grade}
+              {subject_where('sec.subject')}
+            GROUP BY sec.section_id, sec.course_name, sec.subject, sec.curriculum_version
+            ORDER BY sec.course_name
+            """
+        )
+    except Exception as exc:
+        st.error(f"Failed to load section table: {exc}")
+        sec_table = pd.DataFrame()
+
+    if not _empty_guard(sec_table, "sections"):
+        display_st = sec_table[["course_name", "subject", "curriculum_version", "students"]].copy()
+        display_st.columns = ["Section", "Subject", "Curriculum", "Students"]
+
+        selected_section = st.selectbox(
+            "Select a section",
+            options=["-- Choose --"] + sec_table["course_name"].tolist(),
+            key="exec_section_select",
+        )
+
+        st.dataframe(display_st, use_container_width=True, hide_index=True)
+
+        if selected_section != "-- Choose --":
+            row = sec_table[sec_table["course_name"] == selected_section].iloc[0]
+            drill_into(
+                "section",
+                nav_section_id=row["section_id"],
+                nav_section_name=row["course_name"],
+            )
+            st.rerun()
+
+
+# =====================================================================
+# SECTION LEVEL
+# =====================================================================
+def render_section():
+    """Section-level view: KPIs, student list, drill into student."""
+    breadcrumb()
+    back_button()
+
+    section_id = st.session_state.get("nav_section_id")
+    section_name = st.session_state.get("nav_section_name", "Section")
+
+    page_header(section_name, "Section roster and performance")
+
+    # ── Look up section details ──────────────────────────────────────
+    try:
+        sec_info = query(
+            f"SELECT subject, grade_level, school_id FROM gold.dim_section WHERE section_id = '{section_id}' LIMIT 1"
+        )
+        if sec_info.empty:
+            st.error("Section not found.")
+            st.stop()
+        sec_subject = sec_info.iloc[0]["subject"]
+        sec_grade = sec_info.iloc[0]["grade_level"]
+        sec_school = sec_info.iloc[0]["school_id"]
+    except Exception as exc:
+        st.error(f"Failed to load section info: {exc}")
+        st.stop()
+
+    # ── Get students in this section (via school + grade) ────────────
+    try:
+        student_list = query(
+            f"""
+            SELECT
+                stu.student_id,
+                stu.grade_level,
+                ROUND(AVG(m.max_score_to_date), 1) AS avg_score,
+                COUNT(DISTINCT m.standard_code) AS standards_assessed
+            FROM gold.dim_student stu
+            JOIN (
+                SELECT student_id, standard_code, max_score_to_date,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+            ) m ON m.student_id = stu.student_id AND m.rn = 1
+            JOIN gold.dim_standard std ON std.standard_code = m.standard_code
+            WHERE stu.school_id = '{sec_school}'
+              AND stu.grade_level = {sec_grade}
+              AND std.subject = '{sec_subject}'
+            GROUP BY stu.student_id, stu.grade_level
+            ORDER BY avg_score ASC
+            """
+        )
+    except Exception as exc:
+        st.error(f"Failed to load student list: {exc}")
+        student_list = pd.DataFrame()
+
+    # ── KPI row ──────────────────────────────────────────────────────
+    stu_count = len(student_list) if not student_list.empty else 0
+    avg_sec_score = round(float(student_list["avg_score"].mean()), 1) if stu_count > 0 else 0.0
+
+    stat_row(
+        [
+            {"label": "Students", "value": f"{stu_count:,}"},
+            {"label": "Avg Score", "value": f"{avg_sec_score}"},
+            {"label": "Subject", "value": sec_subject},
+        ]
+    )
+
+    # ── Student performance table ────────────────────────────────────
+    section("Student Roster", "Select a student to view detailed performance")
+
+    if not _empty_guard(student_list, "students in this section"):
+        display_sl = student_list[["student_id", "avg_score", "standards_assessed"]].copy()
+        display_sl.columns = ["Student ID", "Avg Score", "Standards Assessed"]
+
+        selected_student = st.selectbox(
+            "Select a student",
+            options=["-- Choose --"] + student_list["student_id"].tolist(),
+            key="exec_student_select",
+        )
+
+        st.dataframe(display_sl, use_container_width=True, hide_index=True)
+
+        if selected_student != "-- Choose --":
+            drill_into("student", nav_student_id=selected_student)
+            st.rerun()
+
+
+# =====================================================================
+# STUDENT LEVEL
+# =====================================================================
+def render_student():
+    """Student-level view: KPIs, per-standard mastery, assessment details."""
+    breadcrumb()
+    back_button()
+
+    student_id = st.session_state.get("nav_student_id")
+
+    page_header(f"Student {student_id}", "Individual performance profile")
+
+    # ── KPI row ──────────────────────────────────────────────────────
+    try:
+        avg_score_df = query(
+            f"""
+            SELECT ROUND(AVG(max_score_to_date), 1) AS avg_score
+            FROM (
+                SELECT student_id, standard_code, max_score_to_date,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+                WHERE student_id = '{student_id}'
+            ) sub
+            WHERE rn = 1
+            """
+        )
+        avg_score = round(float(avg_score_df.iloc[0, 0]), 1) if avg_score_df.iloc[0, 0] is not None and not pd.isna(avg_score_df.iloc[0, 0]) else 0.0
+
+        risk_df = query(
+            f"SELECT risk_level, attendance_rate FROM gold.agg_early_warning WHERE student_id = '{student_id}' LIMIT 1"
+        )
+        if not risk_df.empty:
+            risk_level = risk_df.iloc[0]["risk_level"]
+            att_rate = round(float(risk_df.iloc[0]["attendance_rate"]) * 100, 1) if risk_df.iloc[0]["attendance_rate"] is not None else 0.0
+        else:
+            risk_level = "N/A"
+            att_rate = 0.0
+    except Exception as exc:
+        st.error(f"Failed to load student KPIs: {exc}")
+        st.stop()
+
+    risk_severity = {"High": "danger", "Medium": "warning", "Low": "success"}.get(risk_level, "info")
+
+    stat_row(
+        [
+            {"label": "Avg Score", "value": f"{avg_score}"},
+            {"label": "Risk Level", "value": risk_level},
+            {"label": "Attendance Rate", "value": f"{att_rate}%"},
+        ]
+    )
+
+    if risk_level in ("High", "Medium"):
+        insight_card(
+            "At-Risk Student",
+            f"This student has a <b>{risk_level}</b> risk level. "
+            f"Average mastery score is <b>{avg_score}</b> with an attendance rate of <b>{att_rate}%</b>.",
+            severity=risk_severity,
+        )
+
+    # ── Per-standard mastery bar chart ───────────────────────────────
+    section("Mastery by Standard", "Score for each standard assessed")
+
+    try:
+        std_mastery = query(
+            f"""
+            SELECT m.standard_code, m.max_score_to_date AS score, m.mastery_level,
+                   std.subject
+            FROM (
+                SELECT student_id, standard_code, max_score_to_date, mastery_level,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY student_id, standard_code
+                           ORDER BY assessment_count DESC
+                       ) AS rn
+                FROM gold.fact_student_mastery_daily
+                WHERE student_id = '{student_id}'
+            ) m
+            JOIN gold.dim_standard std ON std.standard_code = m.standard_code
+            WHERE m.rn = 1
+            ORDER BY std.subject, m.max_score_to_date ASC
+            """
+        )
+    except Exception as exc:
+        st.error(f"Failed to load standard mastery: {exc}")
+        std_mastery = pd.DataFrame()
+
+    if not _empty_guard(std_mastery, "standard mastery"):
+        fig_std = px.bar(
+            std_mastery,
+            y="standard_code",
+            x="score",
+            color="mastery_level",
+            orientation="h",
+            color_discrete_map=MASTERY_COLORS,
+            labels={"score": "Score", "standard_code": "Standard", "mastery_level": "Level"},
+            text="score",
+        )
+        fig_std.update_traces(texttemplate="%{text:.0f}", textposition="outside")
+        fig_std.update_layout(
+            height=max(350, len(std_mastery) * 35),
+            xaxis=dict(range=[0, 105]),
+            yaxis=dict(autorange="reversed"),
+            showlegend=True,
+            legend=dict(title="Mastery Level"),
+        )
+        apply_theme(fig_std)
+        st.plotly_chart(fig_std, use_container_width=True)
+
+    # ── Assessment detail table ──────────────────────────────────────
+    section("Assessment Responses", "Question-by-question detail")
+
+    try:
+        assess_df = query(
+            f"""
+            SELECT
+                r.assessment_id,
+                r.standard_code,
+                r.question_number,
+                r.correct_answer,
+                r.student_answer,
+                r.is_correct,
+                r.score,
+                r.misconception_tag
+            FROM gold.fact_assessment_responses r
+            WHERE r.student_id = '{student_id}'
+            ORDER BY r.assessment_id, r.question_number
+            """
+        )
+    except Exception as exc:
+        st.error(f"Failed to load assessment responses: {exc}")
+        assess_df = pd.DataFrame()
+
+    if not _empty_guard(assess_df, "assessment responses"):
+        display_ad = assess_df.copy()
+        display_ad["is_correct"] = display_ad["is_correct"].map({True: "Correct", False: "Incorrect"})
+        display_ad.columns = [
+            "Assessment", "Standard", "Q#", "Correct Ans",
+            "Student Ans", "Result", "Score", "Misconception"
+        ]
+        st.dataframe(display_ad, use_container_width=True, hide_index=True)
+
+        # Summary insight
+        total_q = len(assess_df)
+        correct_q = int(assess_df["is_correct"].sum())
+        accuracy = _safe_pct(correct_q, total_q)
+        misconceptions = int(assess_df["misconception_tag"].notna().sum())
+
+        insight_card(
+            "Assessment Summary",
+            f"Answered <b>{correct_q}</b> of <b>{total_q}</b> questions correctly (<b>{accuracy}%</b> accuracy). "
+            f"<b>{misconceptions}</b> response(s) flagged with misconception patterns.",
+            severity="success" if accuracy >= 75 else "warning",
+        )
+
+
+# =====================================================================
+# Router
+# =====================================================================
+_RENDERERS = {
+    "district": render_district,
+    "school": render_school,
+    "grade": render_grade,
+    "section": render_section,
+    "student": render_student,
 }
-"""
 
-st.graphviz_chart(dot_source)
+renderer = _RENDERERS.get(level, render_district)
+renderer()

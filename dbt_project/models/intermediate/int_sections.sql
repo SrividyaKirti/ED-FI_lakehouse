@@ -35,6 +35,25 @@ unified as (
     union all
     select * from oneroster_sections
 
+),
+
+with_subject as (
+
+    select
+        *,
+        case
+            when course_name like '%Math%' then 'Math'
+            when course_name like '%ELA%' then 'ELA'
+            when course_name like '%Science%' then 'Science'
+            else 'Unknown'
+        end as subject,
+        case
+            when course_name like 'Kindergarten%' or course_name = 'Science K' then 0
+            else try_cast(regexp_extract(course_name, '(\d+)$', 1) as int)
+        end as grade_level
+
+    from unified
+
 )
 
-select * from unified
+select * from with_subject

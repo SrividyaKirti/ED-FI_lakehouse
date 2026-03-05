@@ -1,24 +1,54 @@
-standard_code,standard_description,domain,grade_level,prerequisite_standard_code
-CCSS.MATH.K.CC.A.1,Count to 100 by ones and by tens,Counting & Cardinality,0,
-CCSS.MATH.K.CC.A.2,Count forward beginning from a given number within the known sequence,Counting & Cardinality,0,CCSS.MATH.K.CC.A.1
-CCSS.MATH.K.CC.B.4,Understand the relationship between numbers and quantities; connect counting to cardinality,Counting & Cardinality,0,CCSS.MATH.K.CC.A.1
-CCSS.MATH.K.OA.A.1,"Represent addition and subtraction with objects, fingers, mental images, drawings, sounds, acting out situations, verbal explanations, expressions, or equations",Operations & Algebraic Thinking,0,CCSS.MATH.K.CC.B.4
-CCSS.MATH.K.OA.A.2,"Solve addition and subtraction word problems, and add and subtract within 10",Operations & Algebraic Thinking,0,CCSS.MATH.K.OA.A.1
-CCSS.MATH.1.OA.A.1,Use addition and subtraction within 20 to solve word problems,Operations & Algebraic Thinking,1,CCSS.MATH.K.OA.A.1
-CCSS.MATH.1.OA.B.3,Apply properties of operations as strategies to add and subtract,Operations & Algebraic Thinking,1,CCSS.MATH.1.OA.A.1
-CCSS.MATH.1.NBT.B.2,Understand that the two digits of a two-digit number represent amounts of tens and ones,Number & Operations in Base Ten,1,CCSS.MATH.K.CC.B.4
-CCSS.MATH.1.NBT.C.4,"Add within 100, including adding a two-digit number and a one-digit number",Number & Operations in Base Ten,1,CCSS.MATH.1.NBT.B.2
-CCSS.MATH.2.OA.A.1,Use addition and subtraction within 100 to solve one- and two-step word problems,Operations & Algebraic Thinking,2,CCSS.MATH.1.OA.B.3
-CCSS.MATH.2.OA.B.2,Fluently add and subtract within 20 using mental strategies,Operations & Algebraic Thinking,2,CCSS.MATH.2.OA.A.1
-CCSS.MATH.2.NBT.B.5,Fluently add and subtract within 100 using strategies based on place value,Number & Operations in Base Ten,2,CCSS.MATH.2.OA.A.1
-CCSS.MATH.3.OA.A.1,"Interpret products of whole numbers, e.g., interpret 5 x 7 as the total number of objects in 5 groups of 7 objects each",Operations & Algebraic Thinking,3,CCSS.MATH.2.NBT.B.5
-CCSS.MATH.3.OA.A.3,Use multiplication and division within 100 to solve word problems,Operations & Algebraic Thinking,3,CCSS.MATH.3.OA.A.1
-CCSS.MATH.3.NBT.A.2,Fluently add and subtract within 1000 using strategies and algorithms based on place value,Number & Operations in Base Ten,3,CCSS.MATH.2.NBT.B.5
-CCSS.MATH.3.NF.A.1,Understand a fraction 1/b as the quantity formed by 1 part when a whole is partitioned into b equal parts,Number & Operations-Fractions,3,CCSS.MATH.3.OA.A.1
-CCSS.MATH.4.OA.A.1,Interpret a multiplication equation as a comparison; represent verbal statements of multiplicative comparisons as multiplication equations,Operations & Algebraic Thinking,4,CCSS.MATH.3.NF.A.1
-CCSS.MATH.4.OA.A.2,Multiply or divide to solve word problems involving multiplicative comparison,Operations & Algebraic Thinking,4,CCSS.MATH.4.OA.A.1
-CCSS.MATH.4.NF.A.1,Explain why a fraction a/b is equivalent to a fraction (n x a)/(n x b) using visual fraction models,Number & Operations-Fractions,4,CCSS.MATH.3.NF.A.1
-CCSS.MATH.4.NF.B.3,Understand a fraction a/b with a > 1 as a sum of fractions 1/b; add and subtract fractions with like denominators,Number & Operations-Fractions,4,CCSS.MATH.4.OA.A.1
-CCSS.MATH.5.OA.A.1,"Use parentheses, brackets, or braces in numerical expressions, and evaluate expressions with these symbols",Operations & Algebraic Thinking,5,CCSS.MATH.4.OA.A.2
-CCSS.MATH.5.NF.A.1,Add and subtract fractions with unlike denominators by replacing given fractions with equivalent fractions,Number & Operations-Fractions,5,CCSS.MATH.4.NF.B.3
-CCSS.MATH.5.NF.B.3,Interpret a fraction as division of the numerator by the denominator (a/b = a / b),Number & Operations-Fractions,5,CCSS.MATH.5.NF.A.1
+standard_code,standard_description,domain,grade_level,prerequisite_standard_code,subject
+CCSS.MATH.K.CC.A.1,Count to 100 by ones and by tens,Counting & Cardinality,0,,Math
+CCSS.MATH.K.CC.A.2,Count forward beginning from a given number within the known sequence,Counting & Cardinality,0,CCSS.MATH.K.CC.A.1,Math
+CCSS.MATH.K.CC.B.4,Understand the relationship between numbers and quantities; connect counting to cardinality,Counting & Cardinality,0,CCSS.MATH.K.CC.A.1,Math
+CCSS.MATH.K.OA.A.1,"Represent addition and subtraction with objects, fingers, mental images, drawings, sounds, acting out situations, verbal explanations, expressions, or equations",Operations & Algebraic Thinking,0,CCSS.MATH.K.CC.B.4,Math
+CCSS.MATH.K.OA.A.2,"Solve addition and subtraction word problems, and add and subtract within 10",Operations & Algebraic Thinking,0,CCSS.MATH.K.OA.A.1,Math
+CCSS.MATH.1.OA.A.1,Use addition and subtraction within 20 to solve word problems,Operations & Algebraic Thinking,1,CCSS.MATH.K.OA.A.1,Math
+CCSS.MATH.1.OA.B.3,Apply properties of operations as strategies to add and subtract,Operations & Algebraic Thinking,1,CCSS.MATH.1.OA.A.1,Math
+CCSS.MATH.1.NBT.B.2,Understand that the two digits of a two-digit number represent amounts of tens and ones,Number & Operations in Base Ten,1,CCSS.MATH.K.CC.B.4,Math
+CCSS.MATH.1.NBT.C.4,"Add within 100, including adding a two-digit number and a one-digit number",Number & Operations in Base Ten,1,CCSS.MATH.1.NBT.B.2,Math
+CCSS.MATH.2.OA.A.1,Use addition and subtraction within 100 to solve one- and two-step word problems,Operations & Algebraic Thinking,2,CCSS.MATH.1.OA.B.3,Math
+CCSS.MATH.2.OA.B.2,Fluently add and subtract within 20 using mental strategies,Operations & Algebraic Thinking,2,CCSS.MATH.2.OA.A.1,Math
+CCSS.MATH.2.NBT.B.5,Fluently add and subtract within 100 using strategies based on place value,Number & Operations in Base Ten,2,CCSS.MATH.2.OA.A.1,Math
+CCSS.MATH.3.OA.A.1,"Interpret products of whole numbers, e.g., interpret 5 x 7 as the total number of objects in 5 groups of 7 objects each",Operations & Algebraic Thinking,3,CCSS.MATH.2.NBT.B.5,Math
+CCSS.MATH.3.OA.A.3,Use multiplication and division within 100 to solve word problems,Operations & Algebraic Thinking,3,CCSS.MATH.3.OA.A.1,Math
+CCSS.MATH.3.NBT.A.2,Fluently add and subtract within 1000 using strategies and algorithms based on place value,Number & Operations in Base Ten,3,CCSS.MATH.2.NBT.B.5,Math
+CCSS.MATH.3.NF.A.1,Understand a fraction 1/b as the quantity formed by 1 part when a whole is partitioned into b equal parts,Number & Operations-Fractions,3,CCSS.MATH.3.OA.A.1,Math
+CCSS.MATH.4.OA.A.1,Interpret a multiplication equation as a comparison; represent verbal statements of multiplicative comparisons as multiplication equations,Operations & Algebraic Thinking,4,CCSS.MATH.3.NF.A.1,Math
+CCSS.MATH.4.OA.A.2,Multiply or divide to solve word problems involving multiplicative comparison,Operations & Algebraic Thinking,4,CCSS.MATH.4.OA.A.1,Math
+CCSS.MATH.4.NF.A.1,Explain why a fraction a/b is equivalent to a fraction (n x a)/(n x b) using visual fraction models,Number & Operations-Fractions,4,CCSS.MATH.3.NF.A.1,Math
+CCSS.MATH.4.NF.B.3,Understand a fraction a/b with a > 1 as a sum of fractions 1/b; add and subtract fractions with like denominators,Number & Operations-Fractions,4,CCSS.MATH.4.OA.A.1,Math
+CCSS.MATH.5.OA.A.1,"Use parentheses, brackets, or braces in numerical expressions, and evaluate expressions with these symbols",Operations & Algebraic Thinking,5,CCSS.MATH.4.OA.A.2,Math
+CCSS.MATH.5.NF.A.1,Add and subtract fractions with unlike denominators by replacing given fractions with equivalent fractions,Number & Operations-Fractions,5,CCSS.MATH.4.NF.B.3,Math
+CCSS.MATH.5.NF.B.3,Interpret a fraction as division of the numerator by the denominator (a/b = a / b),Number & Operations-Fractions,5,CCSS.MATH.5.NF.A.1,Math
+CCSS.ELA.K.RF.A.1,"Demonstrate understanding of the organization and basic features of print, including recognizing all uppercase and lowercase letters",Reading: Foundational Skills,0,,ELA
+CCSS.ELA.K.RL.A.1,"With prompting and support, ask and answer questions about key details in a text",Reading: Literature,0,CCSS.ELA.K.RF.A.1,ELA
+CCSS.ELA.K.W.A.2,"Use a combination of drawing, dictating, and writing to compose informative/explanatory texts",Writing,0,,ELA
+CCSS.ELA.1.RL.A.1,Ask and answer questions about key details in a text,Reading: Literature,1,CCSS.ELA.K.RL.A.1,ELA
+CCSS.ELA.1.RI.A.2,Identify the main topic and retell key details of a text,Reading: Informational Text,1,CCSS.ELA.K.RL.A.1,ELA
+CCSS.ELA.1.L.A.1,Demonstrate command of the conventions of standard English grammar and usage when writing or speaking,Language,1,CCSS.ELA.K.W.A.2,ELA
+CCSS.ELA.2.RI.A.2,Identify the main topic of a multi-paragraph text as well as the focus of specific paragraphs,Reading: Informational Text,2,CCSS.ELA.1.RI.A.2,ELA
+CCSS.ELA.2.RL.A.3,Describe how characters in a story respond to major events and challenges,Reading: Literature,2,CCSS.ELA.1.RL.A.1,ELA
+CCSS.ELA.2.W.A.1,"Write opinion pieces in which they introduce the topic, state an opinion, supply reasons, and provide a concluding statement",Writing,2,CCSS.ELA.1.L.A.1,ELA
+CCSS.ELA.3.RL.A.3,Describe characters in a story and explain how their actions contribute to the sequence of events,Reading: Literature,3,CCSS.ELA.2.RL.A.3,ELA
+CCSS.ELA.3.RI.A.2,Determine the main idea of a text; recount the key details and explain how they support the main idea,Reading: Informational Text,3,CCSS.ELA.2.RI.A.2,ELA
+CCSS.ELA.3.L.A.1,Demonstrate command of the conventions of standard English grammar including subject-verb agreement,Language,3,CCSS.ELA.2.W.A.1,ELA
+CCSS.ELA.4.RL.A.2,"Determine a theme of a story, drama, or poem from details in the text; summarize the text",Reading: Literature,4,CCSS.ELA.3.RL.A.3,ELA
+CCSS.ELA.4.W.A.1,"Write opinion pieces on topics or texts, supporting a point of view with reasons and information",Writing,4,CCSS.ELA.3.L.A.1,ELA
+CCSS.ELA.4.RI.A.3,"Explain events, procedures, ideas, or concepts in a historical, scientific, or technical text",Reading: Informational Text,4,CCSS.ELA.3.RI.A.2,ELA
+CCSS.ELA.5.RI.A.2,Determine two or more main ideas of a text and explain how they are supported by key details; provide a summary,Reading: Informational Text,5,CCSS.ELA.4.RI.A.3,ELA
+CCSS.ELA.5.RL.A.2,"Determine a theme of a story, drama, or poem from details in the text, including how characters respond to challenges",Reading: Literature,5,CCSS.ELA.4.RL.A.2,ELA
+CCSS.ELA.5.W.A.1,"Write opinion pieces on topics or texts, supporting a point of view with reasons and information organized logically",Writing,5,CCSS.ELA.4.W.A.1,ELA
+NGSS.K-PS2-1,Plan and conduct an investigation to compare the effects of different strengths or different directions of pushes and pulls on the motion of an object,Physical Science,0,,Science
+NGSS.K-ESS3-1,Use a model to represent the relationship between the needs of different plants and animals and the places they live,Earth & Space Science,0,,Science
+NGSS.1-LS1-1,Use materials to design a solution to a human problem by mimicking how plants and/or animals use their external parts to help them survive,Life Science,1,NGSS.K-ESS3-1,Science
+NGSS.1-PS4-1,Plan and conduct investigations to provide evidence that vibrating materials can make sound and that sound can make materials vibrate,Physical Science,1,NGSS.K-PS2-1,Science
+NGSS.2-PS1-1,Plan and conduct an investigation to describe and classify different kinds of materials by their observable properties,Physical Science,2,NGSS.1-PS4-1,Science
+NGSS.2-LS4-1,Make observations of plants and animals to compare the diversity of life in different habitats,Life Science,2,NGSS.1-LS1-1,Science
+NGSS.3-LS1-1,"Develop models to describe that organisms have unique and diverse life cycles but all have in common birth, growth, reproduction, and death",Life Science,3,NGSS.2-LS4-1,Science
+NGSS.3-PS2-1,Plan and conduct an investigation to provide evidence of the effects of balanced and unbalanced forces on the motion of an object,Physical Science,3,NGSS.2-PS1-1,Science
+NGSS.4-ESS1-1,Identify evidence from patterns in rock formations and fossils in rock layers to support an explanation for changes in a landscape over time,Earth & Space Science,4,NGSS.3-LS1-1,Science
+NGSS.4-PS3-1,Use evidence to construct an explanation relating the speed of an object to the energy of that object,Physical Science,4,NGSS.3-PS2-1,Science
+NGSS.5-PS1-1,Develop a model to describe that matter is made of particles too small to be seen,Physical Science,5,NGSS.4-PS3-1,Science
+NGSS.5-ESS1-1,Support an argument that differences in the apparent brightness of the sun compared to other stars is due to their relative distances from Earth,Earth & Space Science,5,NGSS.4-ESS1-1,Science

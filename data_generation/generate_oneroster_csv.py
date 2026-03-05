@@ -7,7 +7,7 @@ Usage (from repo root)::
 
 This produces 9 CSV files conforming to OneRoster 1.2 specification.
 Certain records are intentionally planted with data-quality issues
-(null sourcedIds, dangling references, future dates, grade-level violations)
+(null sourcedIds, dangling references, future dates)
 so the DQ-gate pipeline has something to catch.
 """
 
@@ -39,24 +39,18 @@ SCHOOL_END = date(2026, 5, 22)
 DATE_LAST_MODIFIED = "2025-08-01T00:00:00.000Z"
 
 # OneRoster uses numeric grade format: "00" for K, "01" for 1st, etc.
-GRADE_NUMERIC = {g: f"{g:02d}" for g in range(13)}
+GRADE_NUMERIC = {g: f"{g:02d}" for g in range(6)}
 
-# Math course names per grade level
-MATH_COURSES = {
-    0: "Kindergarten Math",
-    1: "Math 1",
-    2: "Math 2",
-    3: "Math 3",
-    4: "Math 4",
-    5: "Math 5",
-    6: "Math 6",
-    7: "Math 7",
-    8: "Pre-Algebra",
-    9: "Algebra I",
-    10: "Geometry",
-    11: "Algebra II",
-    12: "AP Calculus",
+# Multi-subject course names per grade level
+COURSES = {
+    "Math": {0: "Kindergarten Math", 1: "Math 1", 2: "Math 2", 3: "Math 3", 4: "Math 4", 5: "Math 5"},
+    "ELA": {0: "Kindergarten ELA", 1: "ELA 1", 2: "ELA 2", 3: "ELA 3", 4: "ELA 4", 5: "ELA 5"},
+    "Science": {0: "Science K", 1: "Science 1", 2: "Science 2", 3: "Science 3", 4: "Science 4", 5: "Science 5"},
 }
+SUBJECTS = ["Math", "ELA", "Science"]
+
+SUBJECT_CODES = {"Math": "MATH", "ELA": "ELA", "Science": "SCI"}
+SUBJECT_LABELS = {"Math": "Mathematics", "ELA": "English Language Arts", "Science": "Science"}
 
 
 # ---------------------------------------------------------------------------
@@ -261,7 +255,7 @@ def _generate_courses(
     org_records: List[dict],
     school_year_id: str,
 ) -> List[dict]:
-    """Generate courses.csv -- course catalog for each school."""
+    """Generate courses.csv -- course catalog for each school, all 3 subjects."""
     headers = [
         "sourcedId", "status", "dateLastModified",
         "schoolYearSourcedId", "title", "courseCode",
@@ -284,34 +278,37 @@ def _generate_courses(
         grade_high = school["grade_band_high"]
 
         for grade in range(grade_low, grade_high + 1):
-            course_name = MATH_COURSES.get(grade, "Math {}".format(grade))
-            course_code = "MATH-{}".format(grade)
-            course_id = _deterministic_uuid(
-                "course-{}-{}".format(school["school_id"], grade)
-            )
+            for subject in SUBJECTS:
+                course_name = COURSES[subject][grade]
+                subject_code = SUBJECT_CODES[subject]
+                course_code = "{}-{}".format(subject_code, grade)
+                course_id = _deterministic_uuid(
+                    "course-{}-{}-{}".format(school["school_id"], grade, subject)
+                )
 
-            courses.append({
-                "sourcedId": course_id,
-                "title": course_name,
-                "courseCode": course_code,
-                "grade": grade,
-                "grade_numeric": GRADE_NUMERIC[grade],
-                "orgSourcedId": org_sourced_id,
-                "school_id": school["school_id"],
-            })
+                courses.append({
+                    "sourcedId": course_id,
+                    "title": course_name,
+                    "courseCode": course_code,
+                    "grade": grade,
+                    "grade_numeric": GRADE_NUMERIC[grade],
+                    "orgSourcedId": org_sourced_id,
+                    "school_id": school["school_id"],
+                    "subject": subject,
+                })
 
-            rows.append([
-                course_id,
-                "active",
-                DATE_LAST_MODIFIED,
-                school_year_id,
-                course_name,
-                course_code,
-                GRADE_NUMERIC[grade],
-                org_sourced_id,
-                "Mathematics",
-                "MATH",
-            ])
+                rows.append([
+                    course_id,
+                    "active",
+                    DATE_LAST_MODIFIED,
+                    school_year_id,
+                    course_name,
+                    course_code,
+                    GRADE_NUMERIC[grade],
+                    org_sourced_id,
+                    SUBJECT_LABELS[subject],
+                    subject_code,
+                ])
 
     _write_csv(os.path.join(output_dir, "courses.csv"), headers, rows)
     return courses
@@ -326,10 +323,7 @@ def _generate_classes(
     rng: random.Random,
     target_sections: int = 200,
 ) -> List[dict]:
-    """Generate classes.csv -- sections distributed across schools and grade bands.
-
-    Also creates AP classes for grade-level violation planting.
-    """
+    """Generate classes.csv -- sections distributed across schools, grades, and subjects."""
     headers = [
         "sourcedId", "status", "dateLastModified",
         "title", "grades", "courseSourcedId", "classCode",
@@ -344,10 +338,10 @@ def _generate_classes(
         if o["type"] == "school"
     }
 
-    # Build (school_id, grade) -> courseSourcedId lookup
-    course_lookup = {}  # type: Dict[Tuple[str, int], str]
+    # Build (school_id, grade, subject) -> courseSourcedId lookup
+    course_lookup = {}  # type: Dict[Tuple[str, int, str], str]
     for c in courses:
-        course_lookup[(c["school_id"], c["grade"])] = c["sourcedId"]
+        course_lookup[(c["school_id"], c["grade"], c["subject"])] = c["sourcedId"]
 
     # Use school year term IDs
     term_ids = ",".join(s["sourcedId"] for s in sessions if s["type"] == "semester")
@@ -374,97 +368,53 @@ def _generate_classes(
 
         for grade in range(grade_low, grade_high + 1):
             sections_per_grade = max(1, school_sections // num_grades)
-            course_sourced_id = course_lookup.get(
-                (school["school_id"], grade), ""
-            )
-            course_name = MATH_COURSES.get(grade, "Math {}".format(grade))
-
-            for s in range(sections_per_grade):
-                section_counter += 1
-                curriculum_version = rng.choice(["A", "B"])
-                class_code = "MATH-{}-{}".format(grade, curriculum_version)
-                class_id = _deterministic_uuid(
-                    "class-{}-{}-{}".format(
-                        school["school_id"], grade, section_counter
-                    )
+            for subject in SUBJECTS:
+                subject_code = SUBJECT_CODES[subject]
+                course_sourced_id = course_lookup.get(
+                    (school["school_id"], grade, subject), ""
                 )
+                course_name = COURSES[subject][grade]
 
-                class_record = {
-                    "sourcedId": class_id,
-                    "title": "{} Section {}".format(course_name, s + 1),
-                    "grade": grade,
-                    "grade_numeric": GRADE_NUMERIC[grade],
-                    "courseSourcedId": course_sourced_id,
-                    "classCode": class_code,
-                    "schoolSourcedId": org_sourced_id,
-                    "school_id": school["school_id"],
-                    "curriculum_version": curriculum_version,
-                }
-                classes.append(class_record)
+                for s in range(sections_per_grade):
+                    section_counter += 1
+                    curriculum_version = rng.choice(["A", "B"])
+                    class_code = "{}-{}-{}".format(subject_code, grade, curriculum_version)
+                    class_id = _deterministic_uuid(
+                        "class-{}-{}-{}-{}".format(
+                            school["school_id"], grade, subject, section_counter
+                        )
+                    )
 
-                rows.append([
-                    class_id,
-                    "active",
-                    DATE_LAST_MODIFIED,
-                    class_record["title"],
-                    GRADE_NUMERIC[grade],
-                    course_sourced_id,
-                    class_code,
-                    "scheduled",
-                    "Room {}".format(section_counter),
-                    org_sourced_id,
-                    term_ids,
-                    "Mathematics",
-                    "MATH",
-                    "Period {}".format((section_counter % 8) + 1),
-                ])
+                    class_record = {
+                        "sourcedId": class_id,
+                        "title": "{} Section {}".format(course_name, s + 1),
+                        "grade": grade,
+                        "grade_numeric": GRADE_NUMERIC[grade],
+                        "courseSourcedId": course_sourced_id,
+                        "classCode": class_code,
+                        "schoolSourcedId": org_sourced_id,
+                        "school_id": school["school_id"],
+                        "curriculum_version": curriculum_version,
+                        "subject": subject,
+                    }
+                    classes.append(class_record)
 
-    # Add AP classes for grade-level violation planting.
-    # These are classes with "AP" in the title that K-2 students will be
-    # enrolled in (the violation).  We place them at high schools.
-    hs_schools = [s for s in schools if s["school_type"] == "High"]
-    for hs in hs_schools:
-        org_sourced_id = school_org_lookup[hs["school_id"]]
-        for ap_idx, ap_name in enumerate(["AP Calculus", "AP Statistics"]):
-            section_counter += 1
-            ap_class_id = _deterministic_uuid(
-                "ap-class-{}-{}".format(hs["school_id"], ap_idx)
-            )
-            # Use grade 12 course for AP
-            course_sourced_id = course_lookup.get(
-                (hs["school_id"], 12), ""
-            )
-
-            class_record = {
-                "sourcedId": ap_class_id,
-                "title": ap_name,
-                "grade": 12,
-                "grade_numeric": "12",
-                "courseSourcedId": course_sourced_id,
-                "classCode": "AP-MATH-{}".format(ap_idx + 1),
-                "schoolSourcedId": org_sourced_id,
-                "school_id": hs["school_id"],
-                "curriculum_version": "A",
-                "is_ap": True,
-            }
-            classes.append(class_record)
-
-            rows.append([
-                ap_class_id,
-                "active",
-                DATE_LAST_MODIFIED,
-                ap_name,
-                "12",
-                course_sourced_id,
-                "AP-MATH-{}".format(ap_idx + 1),
-                "scheduled",
-                "Room {}".format(section_counter),
-                org_sourced_id,
-                term_ids,
-                "Mathematics",
-                "MATH",
-                "Period {}".format((section_counter % 8) + 1),
-            ])
+                    rows.append([
+                        class_id,
+                        "active",
+                        DATE_LAST_MODIFIED,
+                        class_record["title"],
+                        GRADE_NUMERIC[grade],
+                        course_sourced_id,
+                        class_code,
+                        "scheduled",
+                        "Room {}".format(section_counter),
+                        org_sourced_id,
+                        term_ids,
+                        SUBJECT_LABELS[subject],
+                        subject_code,
+                        "Period {}".format((section_counter % 8) + 1),
+                    ])
 
     _write_csv(os.path.join(output_dir, "classes.csv"), headers, rows)
     return classes
@@ -499,7 +449,7 @@ def _generate_users(
 
     # Generate students
     for i in range(num_students):
-        grade = rng.randint(0, 12)
+        grade = rng.randint(0, 5)
         first_name = fake.first_name()
         last_name = fake.last_name()
         middle_name = fake.first_name()
@@ -653,10 +603,11 @@ def _generate_enrollments(
 ) -> List[dict]:
     """Generate enrollments.csv -- student-to-class + teacher-to-class links.
 
+    Each student is enrolled in 3 classes (one per subject: Math, ELA, Science).
+
     Planted DQ issues:
     - 5+ dangling classSourcedId (referencing non-existent classes)
     - 3+ future beginDate
-    - 5-10 grade-level violations (K-2 students in AP classes)
     """
     headers = [
         "sourcedId", "status", "dateLastModified",
@@ -671,16 +622,11 @@ def _generate_enrollments(
         if o["type"] == "school"
     }
 
-    # (school_id, grade) -> list of class records (non-AP)
-    class_lookup = {}  # type: Dict[Tuple[str, int], List[dict]]
+    # (school_id, grade, subject) -> list of class records
+    class_lookup = {}  # type: Dict[Tuple[str, int, str], List[dict]]
     for cls in classes:
-        if cls.get("is_ap"):
-            continue
-        key = (cls["school_id"], cls["grade"])
+        key = (cls["school_id"], cls["grade"], cls["subject"])
         class_lookup.setdefault(key, []).append(cls)
-
-    # AP classes
-    ap_classes = [c for c in classes if c.get("is_ap") or "AP" in c["title"]]
 
     enrollments = []
     rows = []
@@ -696,12 +642,6 @@ def _generate_enrollments(
     num_dangling = max(5, int(len(students) * 0.03))
     # Future beginDate: 3+ (scaled)
     num_future = max(3, int(len(students) * 0.02))
-    # Grade-level violations: 5-10 K-2 students in AP classes
-    k2_indices = [
-        i for i in valid_student_indices
-        if students[i]["grade_level"] <= 2
-    ]
-    num_grade_violations = min(max(5, int(len(k2_indices) * 0.15)), 10, len(k2_indices))
 
     rng.shuffle(valid_student_indices)
     dangling_indices = set(valid_student_indices[:num_dangling])
@@ -709,18 +649,17 @@ def _generate_enrollments(
         valid_student_indices[num_dangling:num_dangling + num_future]
     )
 
-    # Pick K-2 students for grade violations (separate from dangling/future)
-    used_indices = dangling_indices | future_indices
-    available_k2 = [i for i in k2_indices if i not in used_indices]
-    rng.shuffle(available_k2)
-    grade_violation_indices = set(available_k2[:num_grade_violations])
+    # For dangling students, pick which subject(s) get dangling refs (not all 3)
+    # Each dangling student gets 1 random subject with a dangling ref
+    dangling_subject_by_index = {}  # type: Dict[int, str]
+    for idx in dangling_indices:
+        dangling_subject_by_index[idx] = rng.choice(SUBJECTS)
 
     # --- Generate student enrollments ---
     for i, student in enumerate(students):
         if student["has_null_id"]:
             continue
 
-        enrollment_counter += 1
         grade = student["grade_level"]
         student_sourced_id = student["sourcedId"]
 
@@ -731,37 +670,7 @@ def _generate_enrollments(
         school = rng.choice(eligible_schools)
         school_sourced_id = school_org_lookup.get(school["school_id"], "")
 
-        # Determine class assignment
-        if i in dangling_indices:
-            # Dangling reference: use a fake class ID
-            class_sourced_id = _deterministic_uuid(
-                "dangling-class-{}".format(enrollment_counter)
-            )
-        elif i in grade_violation_indices and ap_classes:
-            # Grade-level violation: K-2 student in AP class
-            ap_class = rng.choice(ap_classes)
-            class_sourced_id = ap_class["sourcedId"]
-            # Use the AP class's school
-            school_sourced_id = ap_class["schoolSourcedId"]
-        else:
-            # Normal assignment
-            key = (school["school_id"], grade)
-            available = class_lookup.get(key, [])
-            if available:
-                class_sourced_id = rng.choice(available)["sourcedId"]
-            else:
-                # Fallback: any class in the school
-                school_classes = [
-                    c for c in classes
-                    if c["school_id"] == school["school_id"]
-                    and not c.get("is_ap")
-                ]
-                if school_classes:
-                    class_sourced_id = rng.choice(school_classes)["sourcedId"]
-                else:
-                    class_sourced_id = classes[0]["sourcedId"]
-
-        # Determine beginDate
+        # Determine beginDate (future date applies to all 3 subject enrollments)
         if i in future_indices:
             begin_date = "2027-09-01"
         else:
@@ -769,42 +678,76 @@ def _generate_enrollments(
 
         end_date = "2026-05-22"
 
-        enrollment_id = _deterministic_uuid(
-            "enrollment-student-{}".format(enrollment_counter)
-        )
+        # Enroll in one class per subject
+        for subject in SUBJECTS:
+            enrollment_counter += 1
 
-        enrollments.append({
-            "sourcedId": enrollment_id,
-            "classSourcedId": class_sourced_id,
-            "schoolSourcedId": school_sourced_id,
-            "userSourcedId": student_sourced_id,
-            "role": "student",
-            "beginDate": begin_date,
-            "is_dangling": i in dangling_indices,
-            "is_future": i in future_indices,
-            "is_grade_violation": i in grade_violation_indices,
-            "grade_level": grade,
-        })
+            # Check if this is a dangling enrollment
+            is_dangling = (
+                i in dangling_indices
+                and dangling_subject_by_index.get(i) == subject
+            )
 
-        rows.append([
-            enrollment_id,
-            "active",
-            DATE_LAST_MODIFIED,
-            class_sourced_id,
-            school_sourced_id,
-            student_sourced_id,
-            "student",
-            "true",
-            begin_date,
-            end_date,
-        ])
+            if is_dangling:
+                # Dangling reference: use a fake class ID
+                class_sourced_id = _deterministic_uuid(
+                    "dangling-class-{}-{}".format(enrollment_counter, subject)
+                )
+            else:
+                # Normal assignment
+                key = (school["school_id"], grade, subject)
+                available = class_lookup.get(key, [])
+                if available:
+                    class_sourced_id = rng.choice(available)["sourcedId"]
+                else:
+                    # Fallback: any class in the school for this subject
+                    school_subject_classes = [
+                        c for c in classes
+                        if c["school_id"] == school["school_id"]
+                        and c["subject"] == subject
+                    ]
+                    if school_subject_classes:
+                        class_sourced_id = rng.choice(school_subject_classes)["sourcedId"]
+                    else:
+                        # Last resort: any class for this subject
+                        subject_classes = [c for c in classes if c["subject"] == subject]
+                        class_sourced_id = rng.choice(subject_classes)["sourcedId"] if subject_classes else classes[0]["sourcedId"]
+
+            enrollment_id = _deterministic_uuid(
+                "enrollment-student-{}-{}".format(enrollment_counter, subject)
+            )
+
+            enrollments.append({
+                "sourcedId": enrollment_id,
+                "classSourcedId": class_sourced_id,
+                "schoolSourcedId": school_sourced_id,
+                "userSourcedId": student_sourced_id,
+                "role": "student",
+                "beginDate": begin_date,
+                "is_dangling": is_dangling,
+                "is_future": i in future_indices,
+                "grade_level": grade,
+                "subject": subject,
+            })
+
+            rows.append([
+                enrollment_id,
+                "active",
+                DATE_LAST_MODIFIED,
+                class_sourced_id,
+                school_sourced_id,
+                student_sourced_id,
+                "student",
+                "true",
+                begin_date,
+                end_date,
+            ])
 
     # --- Generate teacher enrollments ---
     # Assign each teacher to 2-4 classes
-    non_ap_classes = [c for c in classes if not c.get("is_ap")]
     for teacher in teachers:
-        num_classes = rng.randint(2, min(4, len(non_ap_classes)))
-        teacher_classes = rng.sample(non_ap_classes, num_classes)
+        num_classes = rng.randint(2, min(4, len(classes)))
+        teacher_classes = rng.sample(classes, num_classes)
 
         for cls in teacher_classes:
             enrollment_counter += 1
@@ -821,7 +764,7 @@ def _generate_enrollments(
                 "beginDate": "2025-08-15",
                 "is_dangling": False,
                 "is_future": False,
-                "is_grade_violation": False,
+                "subject": cls.get("subject", "Math"),
             })
 
             rows.append([
@@ -860,20 +803,21 @@ def _generate_line_items(
         "Benchmark Assessment", "Chapter Review", "Final Exam",
     ]
 
-    category_id = _deterministic_uuid("category-math-assessment")
+    category_id = _deterministic_uuid("category-assessment")
 
     line_items = []
     rows = []
     item_counter = 0
 
     for cls in classes:
+        subject = cls.get("subject", "Math")
         num_items = rng.randint(5, 10)
         for j in range(num_items):
             item_counter += 1
             li_id = _deterministic_uuid(
                 "lineitem-{}-{}".format(cls["sourcedId"], j)
             )
-            title = "{} {}".format(rng.choice(assessment_titles), j + 1)
+            title = "{} {} {}".format(subject, rng.choice(assessment_titles), j + 1)
 
             # Assign date within the school year
             days_offset = rng.randint(0, 250)
@@ -890,6 +834,7 @@ def _generate_line_items(
                 "classSourcedId": cls["sourcedId"],
                 "class_grade": cls.get("grade", 0),
                 "class_school_id": cls.get("school_id", ""),
+                "subject": subject,
             })
 
             rows.append([
@@ -897,7 +842,7 @@ def _generate_line_items(
                 "active",
                 DATE_LAST_MODIFIED,
                 title,
-                "Math assessment for {}".format(cls["title"]),
+                "{} assessment for {}".format(subject, cls["title"]),
                 str(assign_date),
                 str(due_date),
                 cls["sourcedId"],
@@ -922,7 +867,7 @@ def _generate_results(
     Extra columns: question_number, standard_code, correct_answer,
                    student_answer, misconception_indicator.
 
-    Plants misconception patterns for the 3 target standards.
+    Plants misconception patterns for the target standards across all subjects.
     """
     headers = [
         "sourcedId", "status", "dateLastModified",
@@ -937,28 +882,31 @@ def _generate_results(
     standards = get_learning_standards()
     misconception_patterns = get_misconception_patterns()
 
-    # Build lookup: grade_level -> list of standards
-    standards_by_grade = {}  # type: Dict[int, List[dict]]
+    # Build lookup: (grade_level, subject) -> list of standards
+    standards_by_grade = {}  # type: Dict[Tuple[int, str], List[dict]]
     for std in standards:
-        standards_by_grade.setdefault(std["grade_level"], []).append(std)
+        key = (std["grade_level"], std["subject"])
+        standards_by_grade.setdefault(key, []).append(std)
 
     # Build misconception lookup: standard_code -> misconception info
     misconception_by_standard = {
         m["standard_code"]: m for m in misconception_patterns
     }
 
-    # Target standards for misconception planting
-    misconception_standard_codes = {
-        "CCSS.MATH.4.OA.A.1",
-        "CCSS.MATH.3.NF.A.1",
-        "CCSS.MATH.4.NF.B.3",
-    }
+    # Target standards for misconception planting (all subjects)
+    misconception_standard_codes = set(m["standard_code"] for m in misconception_patterns)
 
-    # Build student enrollment lookup: studentSourcedId -> enrollment info
-    student_enrollments = {}  # type: Dict[str, dict]
+    # Build student enrollment lookup: studentSourcedId -> list of enrollment dicts
+    student_enrollments = {}  # type: Dict[str, List[dict]]
     for e in enrollments:
         if e["role"] == "student" and not e["is_dangling"]:
-            student_enrollments[e["userSourcedId"]] = e
+            student_enrollments.setdefault(e["userSourcedId"], []).append(e)
+
+    # Build class -> subject lookup
+    class_subject_lookup = {}  # type: Dict[str, str]
+    for cls_enr in enrollments:
+        if "subject" in cls_enr:
+            class_subject_lookup[cls_enr["classSourcedId"]] = cls_enr.get("subject", "Math")
 
     # Build class -> lineItems lookup
     class_line_items = {}  # type: Dict[str, List[dict]]
@@ -975,6 +923,7 @@ def _generate_results(
         if std_info is None:
             continue
         target_grade = std_info["grade_level"]
+        target_subject = std_info["subject"]
         eligible = [
             s["sourcedId"]
             for s in students
@@ -993,12 +942,29 @@ def _generate_results(
         mc = misconception_by_standard.get(std_code)
         if mc is None:
             continue
+        # Math misconceptions
         if mc["pattern_label"] == "subtraction_instead_of_division":
             misconception_wrong_answers[std_code] = ["3", "5", "2", "7", "4"]
         elif mc["pattern_label"] == "numerator_denominator_swap":
             misconception_wrong_answers[std_code] = ["4/3", "5/2", "3/1", "8/5", "7/4"]
         elif mc["pattern_label"] == "fraction_addition_whole_number":
             misconception_wrong_answers[std_code] = ["2/7", "3/9", "2/5", "4/11", "3/7"]
+        elif mc["pattern_label"] == "fraction_division_invert_wrong":
+            misconception_wrong_answers[std_code] = ["8/15", "6/20", "4/9", "10/21", "3/14"]
+        # ELA misconceptions
+        elif mc["pattern_label"] == "main_idea_vs_detail":
+            misconception_wrong_answers[std_code] = ["A", "D", "A", "C", "A"]
+        elif mc["pattern_label"] == "literal_vs_inferential":
+            misconception_wrong_answers[std_code] = ["A", "A", "D", "A", "D"]
+        elif mc["pattern_label"] == "opinion_vs_fact":
+            misconception_wrong_answers[std_code] = ["D", "C", "D", "B", "D"]
+        # Science misconceptions
+        elif mc["pattern_label"] == "plants_eat_soil":
+            misconception_wrong_answers[std_code] = ["A", "D", "A", "B", "A"]
+        elif mc["pattern_label"] == "heavier_falls_faster":
+            misconception_wrong_answers[std_code] = ["D", "B", "D", "A", "D"]
+        elif mc["pattern_label"] == "seasons_distance":
+            misconception_wrong_answers[std_code] = ["B", "A", "B", "C", "B"]
         else:
             misconception_wrong_answers[std_code] = [
                 "wrong1", "wrong2", "wrong3", "wrong4", "wrong5"
@@ -1006,14 +972,23 @@ def _generate_results(
 
     def _correct_answers_for_standard(std_code: str) -> List[str]:
         """Return 5 plausible correct answers for assessment items."""
-        if "OA" in std_code:
-            return ["12", "8", "15", "24", "6"]
-        elif "NF" in std_code:
-            return ["3/4", "2/5", "1/3", "5/8", "4/7"]
-        elif "NBT" in std_code:
-            return ["45", "78", "120", "93", "56"]
-        elif "CC" in std_code:
-            return ["10", "20", "5", "15", "8"]
+        if std_code.startswith("CCSS.MATH"):
+            # Math standards
+            if "OA" in std_code:
+                return ["12", "8", "15", "24", "6"]
+            elif "NF" in std_code:
+                return ["3/4", "2/5", "1/3", "5/8", "4/7"]
+            elif "NBT" in std_code:
+                return ["45", "78", "120", "93", "56"]
+            elif "CC" in std_code:
+                return ["10", "20", "5", "15", "8"]
+            return ["A", "B", "C", "D", "A"]
+        elif std_code.startswith("CCSS.ELA"):
+            # ELA standards
+            return ["B", "C", "A", "D", "B"]
+        elif std_code.startswith("NGSS"):
+            # Science standards
+            return ["C", "A", "B", "D", "C"]
         return ["A", "B", "C", "D", "A"]
 
     rows = []
@@ -1025,89 +1000,93 @@ def _generate_results(
         if student["sourcedId"] not in student_enrollments:
             continue
 
-        enrollment = student_enrollments[student["sourcedId"]]
-        class_sourced_id = enrollment["classSourcedId"]
         grade = student["grade_level"]
+        student_enrollment_list = student_enrollments[student["sourcedId"]]
 
-        # Get line items for this class
-        items_for_class = class_line_items.get(class_sourced_id, [])
-        if not items_for_class:
-            continue
+        for enrollment in student_enrollment_list:
+            class_sourced_id = enrollment["classSourcedId"]
+            subject = enrollment.get("subject", "Math")
 
-        # Get standards for this grade
-        grade_standards = standards_by_grade.get(grade, [])
-        if not grade_standards:
-            for g in range(grade - 1, -1, -1):
-                grade_standards = standards_by_grade.get(g, [])
-                if grade_standards:
-                    break
+            # Get line items for this class
+            items_for_class = class_line_items.get(class_sourced_id, [])
+            if not items_for_class:
+                continue
 
-        if not grade_standards:
-            continue
+            # Get standards for this grade and subject
+            grade_standards = standards_by_grade.get((grade, subject), [])
+            if not grade_standards:
+                # Fallback: try adjacent grades for same subject
+                for g in range(grade - 1, -1, -1):
+                    grade_standards = standards_by_grade.get((g, subject), [])
+                    if grade_standards:
+                        break
 
-        # Pick a subset of line items to generate results for
-        num_results = min(len(items_for_class), rng.randint(3, 6))
-        selected_items = rng.sample(items_for_class, num_results)
+            if not grade_standards:
+                continue
 
-        for li in selected_items:
-            # Pick a standard for this result
-            std = rng.choice(grade_standards)
-            std_code = std["standard_code"]
+            # Pick a subset of line items to generate results for
+            num_results = min(len(items_for_class), rng.randint(3, 6))
+            selected_items = rng.sample(items_for_class, num_results)
 
-            # Overall score
-            score = max(0, min(100, int(rng.gauss(72, 15))))
+            for li in selected_items:
+                # Pick a standard for this result
+                std = rng.choice(grade_standards)
+                std_code = std["standard_code"]
 
-            # Score date within school year
-            days_offset = rng.randint(0, 250)
-            score_date = SCHOOL_START + timedelta(days=days_offset)
-            if score_date > SCHOOL_END:
-                score_date = SCHOOL_END
+                # Overall score
+                score = max(0, min(100, int(rng.gauss(72, 15))))
 
-            correct_answers = _correct_answers_for_standard(std_code)
+                # Score date within school year
+                days_offset = rng.randint(0, 250)
+                score_date = SCHOOL_START + timedelta(days=days_offset)
+                if score_date > SCHOOL_END:
+                    score_date = SCHOOL_END
 
-            # Check if this student is in a misconception cluster for this standard
-            in_cluster = (
-                std_code in eligible_by_standard
-                and student["sourcedId"] in eligible_by_standard[std_code]
-            )
-            mc_info = misconception_by_standard.get(std_code)
+                correct_answers = _correct_answers_for_standard(std_code)
 
-            # Generate 5 item-level result rows per assessment
-            for q_idx in range(5):
-                result_counter += 1
-                result_id = _deterministic_uuid(
-                    "result-{}-{}-{}".format(
-                        student["sourcedId"], li["sourcedId"], q_idx
-                    )
+                # Check if this student is in a misconception cluster for this standard
+                in_cluster = (
+                    std_code in eligible_by_standard
+                    and student["sourcedId"] in eligible_by_standard[std_code]
                 )
+                mc_info = misconception_by_standard.get(std_code)
 
-                if in_cluster and mc_info and std_code in misconception_wrong_answers:
-                    student_answer = misconception_wrong_answers[std_code][q_idx]
-                    misconception_indicator = mc_info["pattern_label"]
-                else:
-                    if rng.random() < 0.70:
-                        student_answer = correct_answers[q_idx]
-                        misconception_indicator = ""
+                # Generate 5 item-level result rows per assessment
+                for q_idx in range(5):
+                    result_counter += 1
+                    result_id = _deterministic_uuid(
+                        "result-{}-{}-{}-{}".format(
+                            student["sourcedId"], li["sourcedId"], subject, q_idx
+                        )
+                    )
+
+                    if in_cluster and mc_info and std_code in misconception_wrong_answers:
+                        student_answer = misconception_wrong_answers[std_code][q_idx]
+                        misconception_indicator = mc_info["pattern_label"]
                     else:
-                        student_answer = str(rng.randint(1, 50))
-                        misconception_indicator = ""
+                        if rng.random() < 0.70:
+                            student_answer = correct_answers[q_idx]
+                            misconception_indicator = ""
+                        else:
+                            student_answer = str(rng.randint(1, 50))
+                            misconception_indicator = ""
 
-                rows.append([
-                    result_id,
-                    "active",
-                    DATE_LAST_MODIFIED,
-                    li["sourcedId"],
-                    student["sourcedId"],
-                    "fully graded",
-                    str(score),
-                    str(score_date),
-                    "",  # comment
-                    str(q_idx + 1),
-                    std_code,
-                    correct_answers[q_idx],
-                    student_answer,
-                    misconception_indicator,
-                ])
+                    rows.append([
+                        result_id,
+                        "active",
+                        DATE_LAST_MODIFIED,
+                        li["sourcedId"],
+                        student["sourcedId"],
+                        "fully graded",
+                        str(score),
+                        str(score_date),
+                        "",  # comment
+                        str(q_idx + 1),
+                        std_code,
+                        correct_answers[q_idx],
+                        student_answer,
+                        misconception_indicator,
+                    ])
 
     _write_csv(os.path.join(output_dir, "results.csv"), headers, rows)
 

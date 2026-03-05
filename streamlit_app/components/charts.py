@@ -34,6 +34,12 @@ CURRICULUM_COLORS = {
     "B": "#6C5CE7",
 }
 
+SUBJECT_COLORS = {
+    "Math": "#0D7377",
+    "ELA": "#6C5CE7",
+    "Science": "#ED8936",
+}
+
 
 def apply_theme(fig: go.Figure) -> go.Figure:
     """Apply consistent styling to a Plotly figure."""

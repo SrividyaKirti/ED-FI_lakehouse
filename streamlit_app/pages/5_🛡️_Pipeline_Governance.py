@@ -28,7 +28,8 @@ setup_page()
 # ---------------------------------------------------------------------------
 page_header(
     "Pipeline & Governance",
-    "Data quality scorecard, FERPA compliance, and end-to-end data lineage",
+    "Data quality scorecard, FERPA compliance, and end-to-end data lineage "
+    "across Math, ELA, and Science pipelines",
 )
 
 
@@ -38,8 +39,8 @@ page_header(
 
 section("Data Quality Scorecard")
 narrative(
-    "Summary of records quarantined during the latest pipeline run, "
-    "broken down by validation rule."
+    "Summary of records quarantined during the latest multi-subject pipeline "
+    "run (Math, ELA, and Science), broken down by validation rule."
 )
 
 try:
@@ -206,7 +207,10 @@ section(
     "End-to-end pipeline flow from raw source files through Bronze, Silver, "
     "and Gold layers",
 )
-narrative("Data flows through three layers with actual record counts from the database.")
+narrative(
+    "Multi-subject data (Math, ELA, Science) flows through three medallion layers "
+    "with actual record counts from the database."
+)
 
 try:
     _counts: dict[str, int] = {}
@@ -276,8 +280,8 @@ try:
             label="Bronze Layer\\n(Raw Ingestion)";
             style=filled;
             color="#e3f2fd";
-            edfi_raw [label="Ed-Fi XML\\n(API extracts)", fillcolor="#bbdefb"];
-            or_raw [label="OneRoster CSV\\n(flat files)", fillcolor="#bbdefb"];
+            edfi_raw [label="Ed-Fi XML\\n(API extracts)\\nMath | ELA | Science", fillcolor="#bbdefb"];
+            or_raw [label="OneRoster CSV\\n(flat files)\\nMath | ELA | Science", fillcolor="#bbdefb"];
         }}
 
         subgraph cluster_silver {{
@@ -296,11 +300,13 @@ try:
             gold_facts [label="Fact Tables\\n({_gold_fact:,} rows)", fillcolor="#66bb6a"];
         }}
 
+        subjects [label="3 Subjects\\nMath | ELA | Science", fillcolor="#e1bee7", shape=note];
         quarantine [label="DQ Quarantine\\n({_quarantined} records)", fillcolor="#ffcdd2", shape=octagon];
         app [label="Streamlit\\nDashboard", fillcolor="#ce93d8", shape=doubleoctagon];
 
         edfi_raw -> edfi_silver [label="PySpark"];
         or_raw -> or_silver [label="PySpark"];
+        subjects -> gold_facts [style=dashed, label="scope"];
         edfi_silver -> gold_dims [label="dbt"];
         or_silver -> gold_dims [label="dbt"];
         edfi_silver -> gold_facts [label="dbt"];

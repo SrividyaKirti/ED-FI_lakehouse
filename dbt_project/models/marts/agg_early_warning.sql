@@ -1,23 +1,32 @@
 -- Early warning system combining mastery trends and attendance
-with latest_mastery as (
+with ranked_mastery as (
 
-    -- Use only the latest mastery record per student per standard
     select
-        m.student_id,
-        m.standard_code,
-        m.max_score_to_date,
-        m.mastery_level,
-        m.assessment_count
+        student_id,
+        standard_code,
+        max_score_to_date,
+        mastery_level,
+        assessment_count,
+        row_number() over (
+            partition by student_id, standard_code
+            order by assessment_count desc, date_key desc nulls last
+        ) as rn
 
-    from {{ ref('fact_student_mastery_daily') }} m
-    inner join (
-        select student_id, standard_code, max(date_key) as max_date
-        from {{ ref('fact_student_mastery_daily') }}
-        group by student_id, standard_code
-    ) latest
-        on m.student_id = latest.student_id
-        and m.standard_code = latest.standard_code
-        and m.date_key = latest.max_date
+    from {{ ref('fact_student_mastery_daily') }}
+
+),
+
+latest_mastery as (
+
+    select
+        student_id,
+        standard_code,
+        max_score_to_date,
+        mastery_level,
+        assessment_count
+
+    from ranked_mastery
+    where rn = 1
 
 ),
 
@@ -45,7 +54,7 @@ mastery_trend as (
         select
             student_id,
             max_score_to_date,
-            row_number() over (partition by student_id order by date_key) as rn,
+            row_number() over (partition by student_id order by date_key nulls last) as rn,
             count(*) over (partition by student_id) as total
         from {{ ref('fact_student_mastery_daily') }}
     ) f

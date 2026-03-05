@@ -1,24 +1,31 @@
-with latest_mastery as (
+with ranked_mastery as (
 
     select
-        m.student_id,
-        m.standard_code,
-        m.max_score_to_date,
-        m.mastery_level,
-        m._source_system
+        student_id,
+        standard_code,
+        max_score_to_date,
+        mastery_level,
+        _source_system,
+        row_number() over (
+            partition by student_id, standard_code
+            order by assessment_count desc, date_key desc nulls last
+        ) as rn
 
-    from {{ ref('fact_student_mastery_daily') }} m
-    inner join (
-        select
-            student_id,
-            standard_code,
-            max(date_key) as max_date
-        from {{ ref('fact_student_mastery_daily') }}
-        group by student_id, standard_code
-    ) latest
-        on m.student_id = latest.student_id
-        and m.standard_code = latest.standard_code
-        and m.date_key = latest.max_date
+    from {{ ref('fact_student_mastery_daily') }}
+
+),
+
+latest_mastery as (
+
+    select
+        student_id,
+        standard_code,
+        max_score_to_date,
+        mastery_level,
+        _source_system
+
+    from ranked_mastery
+    where rn = 1
 
 ),
 
@@ -26,6 +33,7 @@ by_district as (
 
     select
         lm.standard_code,
+        std.subject,
         sch.district_id,
         sch.district_name,
         count(distinct lm.student_id) as student_count,
@@ -37,7 +45,9 @@ by_district as (
         on lm.student_id = ds.student_id
     inner join {{ ref('dim_school') }} sch
         on ds.school_id = sch.school_id
-    group by lm.standard_code, sch.district_id, sch.district_name
+    left join {{ ref('dim_standard') }} std
+        on lm.standard_code = std.standard_code
+    group by lm.standard_code, std.subject, sch.district_id, sch.district_name
 
 )
 

@@ -15,17 +15,19 @@ with edfi_schools as (
 oneroster_schools as (
 
     select
-        org_id as school_id,
-        org_name as school_name,
-        -- OneRoster does not carry school_type directly
-        null as school_type,
-        parent_sourced_id as district_id,
-        -- District name would require a self-join; seed_school_registry has the full data
-        null as district_name,
-        _source_system
+        o.org_id as school_id,
+        o.org_name as school_name,
+        -- Use seed_school_registry for school_type
+        r.school_type,
+        o.parent_sourced_id as district_id,
+        -- Use seed_school_registry for district_name
+        r.district_name,
+        o._source_system
 
-    from {{ ref('stg_oneroster__orgs') }}
-    where org_type = 'school'
+    from {{ ref('stg_oneroster__orgs') }} o
+    left join {{ ref('seed_school_registry') }} r
+        on o.identifier = r.school_id
+    where o.org_type = 'school'
 
 ),
 

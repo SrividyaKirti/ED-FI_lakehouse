@@ -9,14 +9,14 @@ from __future__ import annotations
 
 
 # ---------------------------------------------------------------------------
-# School Registry
+# School Registry — K-5 Elementary Only
 # ---------------------------------------------------------------------------
 
 def get_school_registry() -> list[dict]:
-    """Return the full school registry for both districts.
+    """Return the K-5 school registry for both districts.
 
-    Grand Bend ISD  (Ed-Fi source)  — 8 schools
-    Riverside USD    (OneRoster source) — 6 schools
+    Grand Bend ISD  (Ed-Fi source)     — 5 elementary schools
+    Riverside USD   (OneRoster source)  — 4 elementary schools
     """
     schools: list[dict] = []
 
@@ -37,27 +37,6 @@ def get_school_registry() -> list[dict]:
                 **gb_district,
             }
         )
-    for i in range(1, 3):
-        schools.append(
-            {
-                "school_id": f"GB-MS-{i:03d}",
-                "school_name": f"Grand Bend Middle {i}",
-                "school_type": "Middle",
-                "grade_band_low": 6,
-                "grade_band_high": 8,
-                **gb_district,
-            }
-        )
-    schools.append(
-        {
-            "school_id": "GB-HS-001",
-            "school_name": "Grand Bend High",
-            "school_type": "High",
-            "grade_band_low": 9,
-            "grade_band_high": 12,
-            **gb_district,
-        }
-    )
 
     # -- Riverside USD (OneRoster) -----------------------------------------------
     rv_district = {
@@ -76,55 +55,27 @@ def get_school_registry() -> list[dict]:
                 **rv_district,
             }
         )
-    schools.append(
-        {
-            "school_id": "RV-MS-001",
-            "school_name": "Riverside Middle",
-            "school_type": "Middle",
-            "grade_band_low": 6,
-            "grade_band_high": 8,
-            **rv_district,
-        }
-    )
-    schools.append(
-        {
-            "school_id": "RV-HS-001",
-            "school_name": "Riverside High",
-            "school_type": "High",
-            "grade_band_low": 9,
-            "grade_band_high": 12,
-            **rv_district,
-        }
-    )
 
     return schools
 
 
 # ---------------------------------------------------------------------------
-# Learning Standards — CCSS Math K-5
+# Learning Standards — CCSS Math K-5, CCSS ELA K-5, NGSS K-5
 # ---------------------------------------------------------------------------
 
 def get_learning_standards() -> list[dict]:
-    """Return ~23 CCSS Math standards spanning grades K-5 with prerequisite chains.
+    """Return learning standards spanning grades K-5 across Math, ELA, and Science.
 
-    Domains covered
-    ---------------
-    CC  — Counting & Cardinality (K only)
-    OA  — Operations & Algebraic Thinking (K-5)
-    NBT — Number & Operations in Base Ten (1-5)
-    NF  — Number & Operations—Fractions (3-5)
-
-    Prerequisite chains
-    -------------------
-    A long chain threads through multiple grade levels so downstream
-    generators can model mastery progression::
-
-        K.CC.A.1 -> K.CC.B.4 -> K.OA.A.1 -> 1.OA.A.1 -> 1.OA.B.3
-        -> 2.OA.A.1 -> 2.NBT.B.5 -> 3.OA.A.1 -> 3.NF.A.1
-        -> 4.OA.A.1 -> 4.NF.B.3 -> 5.NF.A.1 -> 5.NF.B.3
+    Math  — ~23 CCSS Math standards with prerequisite chains
+    ELA   — ~18 CCSS ELA standards (3 per grade: Reading, Writing, Language)
+    Science — ~12 NGSS standards (2 per grade)
     """
     # fmt: off
     standards = [
+        # ══════════════════════════════════════════════════════════════════════
+        # MATH — CCSS Math K-5
+        # ══════════════════════════════════════════════════════════════════════
+
         # ── Kindergarten (grade_level 0) ── domain: Counting & Cardinality ──
         {
             "standard_code": "CCSS.MATH.K.CC.A.1",
@@ -132,6 +83,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Counting & Cardinality",
             "grade_level": 0,
             "prerequisite_standard_code": "",
+            "subject": "Math",
         },
         {
             "standard_code": "CCSS.MATH.K.CC.A.2",
@@ -139,6 +91,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Counting & Cardinality",
             "grade_level": 0,
             "prerequisite_standard_code": "CCSS.MATH.K.CC.A.1",
+            "subject": "Math",
         },
         {
             "standard_code": "CCSS.MATH.K.CC.B.4",
@@ -146,6 +99,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Counting & Cardinality",
             "grade_level": 0,
             "prerequisite_standard_code": "CCSS.MATH.K.CC.A.1",
+            "subject": "Math",
         },
         # ── Kindergarten — domain: Operations & Algebraic Thinking ──
         {
@@ -154,6 +108,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Operations & Algebraic Thinking",
             "grade_level": 0,
             "prerequisite_standard_code": "CCSS.MATH.K.CC.B.4",
+            "subject": "Math",
         },
         {
             "standard_code": "CCSS.MATH.K.OA.A.2",
@@ -161,6 +116,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Operations & Algebraic Thinking",
             "grade_level": 0,
             "prerequisite_standard_code": "CCSS.MATH.K.OA.A.1",
+            "subject": "Math",
         },
         # ── Grade 1 — Operations & Algebraic Thinking ──
         {
@@ -169,6 +125,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Operations & Algebraic Thinking",
             "grade_level": 1,
             "prerequisite_standard_code": "CCSS.MATH.K.OA.A.1",
+            "subject": "Math",
         },
         {
             "standard_code": "CCSS.MATH.1.OA.B.3",
@@ -176,6 +133,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Operations & Algebraic Thinking",
             "grade_level": 1,
             "prerequisite_standard_code": "CCSS.MATH.1.OA.A.1",
+            "subject": "Math",
         },
         # ── Grade 1 — Number & Operations in Base Ten ──
         {
@@ -184,6 +142,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Number & Operations in Base Ten",
             "grade_level": 1,
             "prerequisite_standard_code": "CCSS.MATH.K.CC.B.4",
+            "subject": "Math",
         },
         {
             "standard_code": "CCSS.MATH.1.NBT.C.4",
@@ -191,6 +150,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Number & Operations in Base Ten",
             "grade_level": 1,
             "prerequisite_standard_code": "CCSS.MATH.1.NBT.B.2",
+            "subject": "Math",
         },
         # ── Grade 2 — Operations & Algebraic Thinking ──
         {
@@ -199,6 +159,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Operations & Algebraic Thinking",
             "grade_level": 2,
             "prerequisite_standard_code": "CCSS.MATH.1.OA.B.3",
+            "subject": "Math",
         },
         {
             "standard_code": "CCSS.MATH.2.OA.B.2",
@@ -206,6 +167,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Operations & Algebraic Thinking",
             "grade_level": 2,
             "prerequisite_standard_code": "CCSS.MATH.2.OA.A.1",
+            "subject": "Math",
         },
         # ── Grade 2 — Number & Operations in Base Ten ──
         {
@@ -214,6 +176,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Number & Operations in Base Ten",
             "grade_level": 2,
             "prerequisite_standard_code": "CCSS.MATH.2.OA.A.1",
+            "subject": "Math",
         },
         # ── Grade 3 — Operations & Algebraic Thinking ──
         {
@@ -222,6 +185,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Operations & Algebraic Thinking",
             "grade_level": 3,
             "prerequisite_standard_code": "CCSS.MATH.2.NBT.B.5",
+            "subject": "Math",
         },
         {
             "standard_code": "CCSS.MATH.3.OA.A.3",
@@ -229,6 +193,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Operations & Algebraic Thinking",
             "grade_level": 3,
             "prerequisite_standard_code": "CCSS.MATH.3.OA.A.1",
+            "subject": "Math",
         },
         # ── Grade 3 — Number & Operations in Base Ten ──
         {
@@ -237,6 +202,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Number & Operations in Base Ten",
             "grade_level": 3,
             "prerequisite_standard_code": "CCSS.MATH.2.NBT.B.5",
+            "subject": "Math",
         },
         # ── Grade 3 — Fractions ──
         {
@@ -245,6 +211,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Number & Operations-Fractions",
             "grade_level": 3,
             "prerequisite_standard_code": "CCSS.MATH.3.OA.A.1",
+            "subject": "Math",
         },
         # ── Grade 4 — Operations & Algebraic Thinking ──
         {
@@ -253,6 +220,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Operations & Algebraic Thinking",
             "grade_level": 4,
             "prerequisite_standard_code": "CCSS.MATH.3.NF.A.1",
+            "subject": "Math",
         },
         {
             "standard_code": "CCSS.MATH.4.OA.A.2",
@@ -260,6 +228,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Operations & Algebraic Thinking",
             "grade_level": 4,
             "prerequisite_standard_code": "CCSS.MATH.4.OA.A.1",
+            "subject": "Math",
         },
         # ── Grade 4 — Fractions ──
         {
@@ -268,6 +237,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Number & Operations-Fractions",
             "grade_level": 4,
             "prerequisite_standard_code": "CCSS.MATH.3.NF.A.1",
+            "subject": "Math",
         },
         {
             "standard_code": "CCSS.MATH.4.NF.B.3",
@@ -275,6 +245,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Number & Operations-Fractions",
             "grade_level": 4,
             "prerequisite_standard_code": "CCSS.MATH.4.OA.A.1",
+            "subject": "Math",
         },
         # ── Grade 5 — Operations & Algebraic Thinking ──
         {
@@ -283,6 +254,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Operations & Algebraic Thinking",
             "grade_level": 5,
             "prerequisite_standard_code": "CCSS.MATH.4.OA.A.2",
+            "subject": "Math",
         },
         # ── Grade 5 — Fractions ──
         {
@@ -291,6 +263,7 @@ def get_learning_standards() -> list[dict]:
             "domain": "Number & Operations-Fractions",
             "grade_level": 5,
             "prerequisite_standard_code": "CCSS.MATH.4.NF.B.3",
+            "subject": "Math",
         },
         {
             "standard_code": "CCSS.MATH.5.NF.B.3",
@@ -298,6 +271,269 @@ def get_learning_standards() -> list[dict]:
             "domain": "Number & Operations-Fractions",
             "grade_level": 5,
             "prerequisite_standard_code": "CCSS.MATH.5.NF.A.1",
+            "subject": "Math",
+        },
+
+        # ══════════════════════════════════════════════════════════════════════
+        # ELA — CCSS ELA K-5 (3 per grade = 18 total)
+        # ══════════════════════════════════════════════════════════════════════
+
+        # ── Kindergarten ELA ──
+        {
+            "standard_code": "CCSS.ELA.K.RF.A.1",
+            "standard_description": "Demonstrate understanding of the organization and basic features of print, including recognizing all uppercase and lowercase letters",
+            "domain": "Reading: Foundational Skills",
+            "grade_level": 0,
+            "prerequisite_standard_code": "",
+            "subject": "ELA",
+        },
+        {
+            "standard_code": "CCSS.ELA.K.RL.A.1",
+            "standard_description": "With prompting and support, ask and answer questions about key details in a text",
+            "domain": "Reading: Literature",
+            "grade_level": 0,
+            "prerequisite_standard_code": "CCSS.ELA.K.RF.A.1",
+            "subject": "ELA",
+        },
+        {
+            "standard_code": "CCSS.ELA.K.W.A.2",
+            "standard_description": "Use a combination of drawing, dictating, and writing to compose informative/explanatory texts",
+            "domain": "Writing",
+            "grade_level": 0,
+            "prerequisite_standard_code": "",
+            "subject": "ELA",
+        },
+        # ── Grade 1 ELA ──
+        {
+            "standard_code": "CCSS.ELA.1.RL.A.1",
+            "standard_description": "Ask and answer questions about key details in a text",
+            "domain": "Reading: Literature",
+            "grade_level": 1,
+            "prerequisite_standard_code": "CCSS.ELA.K.RL.A.1",
+            "subject": "ELA",
+        },
+        {
+            "standard_code": "CCSS.ELA.1.RI.A.2",
+            "standard_description": "Identify the main topic and retell key details of a text",
+            "domain": "Reading: Informational Text",
+            "grade_level": 1,
+            "prerequisite_standard_code": "CCSS.ELA.K.RL.A.1",
+            "subject": "ELA",
+        },
+        {
+            "standard_code": "CCSS.ELA.1.L.A.1",
+            "standard_description": "Demonstrate command of the conventions of standard English grammar and usage when writing or speaking",
+            "domain": "Language",
+            "grade_level": 1,
+            "prerequisite_standard_code": "CCSS.ELA.K.W.A.2",
+            "subject": "ELA",
+        },
+        # ── Grade 2 ELA ──
+        {
+            "standard_code": "CCSS.ELA.2.RI.A.2",
+            "standard_description": "Identify the main topic of a multi-paragraph text as well as the focus of specific paragraphs",
+            "domain": "Reading: Informational Text",
+            "grade_level": 2,
+            "prerequisite_standard_code": "CCSS.ELA.1.RI.A.2",
+            "subject": "ELA",
+        },
+        {
+            "standard_code": "CCSS.ELA.2.RL.A.3",
+            "standard_description": "Describe how characters in a story respond to major events and challenges",
+            "domain": "Reading: Literature",
+            "grade_level": 2,
+            "prerequisite_standard_code": "CCSS.ELA.1.RL.A.1",
+            "subject": "ELA",
+        },
+        {
+            "standard_code": "CCSS.ELA.2.W.A.1",
+            "standard_description": "Write opinion pieces in which they introduce the topic, state an opinion, supply reasons, and provide a concluding statement",
+            "domain": "Writing",
+            "grade_level": 2,
+            "prerequisite_standard_code": "CCSS.ELA.1.L.A.1",
+            "subject": "ELA",
+        },
+        # ── Grade 3 ELA ──
+        {
+            "standard_code": "CCSS.ELA.3.RL.A.3",
+            "standard_description": "Describe characters in a story and explain how their actions contribute to the sequence of events",
+            "domain": "Reading: Literature",
+            "grade_level": 3,
+            "prerequisite_standard_code": "CCSS.ELA.2.RL.A.3",
+            "subject": "ELA",
+        },
+        {
+            "standard_code": "CCSS.ELA.3.RI.A.2",
+            "standard_description": "Determine the main idea of a text; recount the key details and explain how they support the main idea",
+            "domain": "Reading: Informational Text",
+            "grade_level": 3,
+            "prerequisite_standard_code": "CCSS.ELA.2.RI.A.2",
+            "subject": "ELA",
+        },
+        {
+            "standard_code": "CCSS.ELA.3.L.A.1",
+            "standard_description": "Demonstrate command of the conventions of standard English grammar including subject-verb agreement",
+            "domain": "Language",
+            "grade_level": 3,
+            "prerequisite_standard_code": "CCSS.ELA.2.W.A.1",
+            "subject": "ELA",
+        },
+        # ── Grade 4 ELA ──
+        {
+            "standard_code": "CCSS.ELA.4.RL.A.2",
+            "standard_description": "Determine a theme of a story, drama, or poem from details in the text; summarize the text",
+            "domain": "Reading: Literature",
+            "grade_level": 4,
+            "prerequisite_standard_code": "CCSS.ELA.3.RL.A.3",
+            "subject": "ELA",
+        },
+        {
+            "standard_code": "CCSS.ELA.4.W.A.1",
+            "standard_description": "Write opinion pieces on topics or texts, supporting a point of view with reasons and information",
+            "domain": "Writing",
+            "grade_level": 4,
+            "prerequisite_standard_code": "CCSS.ELA.3.L.A.1",
+            "subject": "ELA",
+        },
+        {
+            "standard_code": "CCSS.ELA.4.RI.A.3",
+            "standard_description": "Explain events, procedures, ideas, or concepts in a historical, scientific, or technical text",
+            "domain": "Reading: Informational Text",
+            "grade_level": 4,
+            "prerequisite_standard_code": "CCSS.ELA.3.RI.A.2",
+            "subject": "ELA",
+        },
+        # ── Grade 5 ELA ──
+        {
+            "standard_code": "CCSS.ELA.5.RI.A.2",
+            "standard_description": "Determine two or more main ideas of a text and explain how they are supported by key details; provide a summary",
+            "domain": "Reading: Informational Text",
+            "grade_level": 5,
+            "prerequisite_standard_code": "CCSS.ELA.4.RI.A.3",
+            "subject": "ELA",
+        },
+        {
+            "standard_code": "CCSS.ELA.5.RL.A.2",
+            "standard_description": "Determine a theme of a story, drama, or poem from details in the text, including how characters respond to challenges",
+            "domain": "Reading: Literature",
+            "grade_level": 5,
+            "prerequisite_standard_code": "CCSS.ELA.4.RL.A.2",
+            "subject": "ELA",
+        },
+        {
+            "standard_code": "CCSS.ELA.5.W.A.1",
+            "standard_description": "Write opinion pieces on topics or texts, supporting a point of view with reasons and information organized logically",
+            "domain": "Writing",
+            "grade_level": 5,
+            "prerequisite_standard_code": "CCSS.ELA.4.W.A.1",
+            "subject": "ELA",
+        },
+
+        # ══════════════════════════════════════════════════════════════════════
+        # SCIENCE — NGSS K-5 (2 per grade = 12 total)
+        # ══════════════════════════════════════════════════════════════════════
+
+        # ── Kindergarten Science ──
+        {
+            "standard_code": "NGSS.K-PS2-1",
+            "standard_description": "Plan and conduct an investigation to compare the effects of different strengths or different directions of pushes and pulls on the motion of an object",
+            "domain": "Physical Science",
+            "grade_level": 0,
+            "prerequisite_standard_code": "",
+            "subject": "Science",
+        },
+        {
+            "standard_code": "NGSS.K-ESS3-1",
+            "standard_description": "Use a model to represent the relationship between the needs of different plants and animals and the places they live",
+            "domain": "Earth & Space Science",
+            "grade_level": 0,
+            "prerequisite_standard_code": "",
+            "subject": "Science",
+        },
+        # ── Grade 1 Science ──
+        {
+            "standard_code": "NGSS.1-LS1-1",
+            "standard_description": "Use materials to design a solution to a human problem by mimicking how plants and/or animals use their external parts to help them survive",
+            "domain": "Life Science",
+            "grade_level": 1,
+            "prerequisite_standard_code": "NGSS.K-ESS3-1",
+            "subject": "Science",
+        },
+        {
+            "standard_code": "NGSS.1-PS4-1",
+            "standard_description": "Plan and conduct investigations to provide evidence that vibrating materials can make sound and that sound can make materials vibrate",
+            "domain": "Physical Science",
+            "grade_level": 1,
+            "prerequisite_standard_code": "NGSS.K-PS2-1",
+            "subject": "Science",
+        },
+        # ── Grade 2 Science ──
+        {
+            "standard_code": "NGSS.2-PS1-1",
+            "standard_description": "Plan and conduct an investigation to describe and classify different kinds of materials by their observable properties",
+            "domain": "Physical Science",
+            "grade_level": 2,
+            "prerequisite_standard_code": "NGSS.1-PS4-1",
+            "subject": "Science",
+        },
+        {
+            "standard_code": "NGSS.2-LS4-1",
+            "standard_description": "Make observations of plants and animals to compare the diversity of life in different habitats",
+            "domain": "Life Science",
+            "grade_level": 2,
+            "prerequisite_standard_code": "NGSS.1-LS1-1",
+            "subject": "Science",
+        },
+        # ── Grade 3 Science ──
+        {
+            "standard_code": "NGSS.3-LS1-1",
+            "standard_description": "Develop models to describe that organisms have unique and diverse life cycles but all have in common birth, growth, reproduction, and death",
+            "domain": "Life Science",
+            "grade_level": 3,
+            "prerequisite_standard_code": "NGSS.2-LS4-1",
+            "subject": "Science",
+        },
+        {
+            "standard_code": "NGSS.3-PS2-1",
+            "standard_description": "Plan and conduct an investigation to provide evidence of the effects of balanced and unbalanced forces on the motion of an object",
+            "domain": "Physical Science",
+            "grade_level": 3,
+            "prerequisite_standard_code": "NGSS.2-PS1-1",
+            "subject": "Science",
+        },
+        # ── Grade 4 Science ──
+        {
+            "standard_code": "NGSS.4-ESS1-1",
+            "standard_description": "Identify evidence from patterns in rock formations and fossils in rock layers to support an explanation for changes in a landscape over time",
+            "domain": "Earth & Space Science",
+            "grade_level": 4,
+            "prerequisite_standard_code": "NGSS.3-LS1-1",
+            "subject": "Science",
+        },
+        {
+            "standard_code": "NGSS.4-PS3-1",
+            "standard_description": "Use evidence to construct an explanation relating the speed of an object to the energy of that object",
+            "domain": "Physical Science",
+            "grade_level": 4,
+            "prerequisite_standard_code": "NGSS.3-PS2-1",
+            "subject": "Science",
+        },
+        # ── Grade 5 Science ──
+        {
+            "standard_code": "NGSS.5-PS1-1",
+            "standard_description": "Develop a model to describe that matter is made of particles too small to be seen",
+            "domain": "Physical Science",
+            "grade_level": 5,
+            "prerequisite_standard_code": "NGSS.4-PS3-1",
+            "subject": "Science",
+        },
+        {
+            "standard_code": "NGSS.5-ESS1-1",
+            "standard_description": "Support an argument that differences in the apparent brightness of the sun compared to other stars is due to their relative distances from Earth",
+            "domain": "Earth & Space Science",
+            "grade_level": 5,
+            "prerequisite_standard_code": "NGSS.4-ESS1-1",
+            "subject": "Science",
         },
     ]
     # fmt: on
@@ -306,12 +542,13 @@ def get_learning_standards() -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Misconception Patterns
+# Misconception Patterns — Math, ELA, Science
 # ---------------------------------------------------------------------------
 
 def get_misconception_patterns() -> list[dict]:
-    """Return common math misconception patterns tied to specific standards."""
+    """Return common misconception patterns tied to specific standards."""
     return [
+        # ── Math misconceptions ──
         {
             "misconception_id": "MC-001",
             "standard_code": "CCSS.MATH.4.OA.A.1",
@@ -376,5 +613,103 @@ def get_misconception_patterns() -> list[dict]:
                 "second fraction.  Use number-line models to verify."
             ),
             "wrong_answer_pattern": "(a/b) / (c/d) = (b/a) * (c/d) instead of (a/b) * (d/c)",
+        },
+        # ── ELA misconceptions ──
+        {
+            "misconception_id": "MC-ELA-001",
+            "standard_code": "CCSS.ELA.3.RI.A.2",
+            "pattern_label": "main_idea_vs_detail",
+            "description": (
+                "Student confuses supporting details with the main idea, "
+                "selecting a specific detail or example when asked to identify "
+                "the central message of the passage."
+            ),
+            "suggested_reteach": (
+                "Use graphic organizers (main idea webs) where students place "
+                "the big idea in the center and supporting details around it. "
+                "Practice with short paragraphs before full passages."
+            ),
+            "wrong_answer_pattern": "selects supporting detail instead of main idea",
+        },
+        {
+            "misconception_id": "MC-ELA-002",
+            "standard_code": "CCSS.ELA.4.RL.A.2",
+            "pattern_label": "literal_vs_inferential",
+            "description": (
+                "Student answers with text-explicit (literal) information when "
+                "the question requires making an inference. Struggles to read "
+                "between the lines or draw conclusions beyond stated facts."
+            ),
+            "suggested_reteach": (
+                "Model think-aloud strategies: 'The text says... I know that... "
+                "So I can figure out...' Use sentence stems for inference practice "
+                "with progressively less scaffolding."
+            ),
+            "wrong_answer_pattern": "provides literal text quote instead of inference",
+        },
+        {
+            "misconception_id": "MC-ELA-003",
+            "standard_code": "CCSS.ELA.4.W.A.1",
+            "pattern_label": "opinion_vs_fact",
+            "description": (
+                "Student presents personal opinions as facts in informational "
+                "or opinion writing without supporting evidence or reasoning, "
+                "or confuses factual claims with opinion statements."
+            ),
+            "suggested_reteach": (
+                "Create a two-column chart (Fact vs. Opinion) with examples. "
+                "Teach signal words for opinions (I think, I believe, in my view) "
+                "and practice identifying evidence-based claims."
+            ),
+            "wrong_answer_pattern": "states opinion as fact without evidence",
+        },
+        # ── Science misconceptions ──
+        {
+            "misconception_id": "MC-SCI-001",
+            "standard_code": "NGSS.3-LS1-1",
+            "pattern_label": "plants_eat_soil",
+            "description": (
+                "Student believes plants get their food (mass) from the soil "
+                "rather than from photosynthesis. Confuses water/mineral uptake "
+                "with the primary source of plant growth."
+            ),
+            "suggested_reteach": (
+                "Conduct a plant growth experiment comparing soil weight before "
+                "and after growth. Introduce photosynthesis as 'plants making "
+                "food from sunlight, water, and air (CO2)' with diagrams."
+            ),
+            "wrong_answer_pattern": "says plants get food from soil/roots",
+        },
+        {
+            "misconception_id": "MC-SCI-002",
+            "standard_code": "NGSS.3-PS2-1",
+            "pattern_label": "heavier_falls_faster",
+            "description": (
+                "Student thinks heavier objects always fall faster than lighter "
+                "ones, not accounting for air resistance or understanding that "
+                "gravity accelerates all objects equally in a vacuum."
+            ),
+            "suggested_reteach": (
+                "Drop objects of different masses but similar shapes (e.g., "
+                "two balls of different weights) and observe. Discuss Galileo's "
+                "experiment and distinguish mass from air resistance effects."
+            ),
+            "wrong_answer_pattern": "claims heavier objects fall faster",
+        },
+        {
+            "misconception_id": "MC-SCI-003",
+            "standard_code": "NGSS.5-ESS1-1",
+            "pattern_label": "seasons_distance",
+            "description": (
+                "Student thinks seasons are caused by Earth's changing distance "
+                "from the Sun rather than by the tilt of Earth's axis and the "
+                "resulting angle of sunlight."
+            ),
+            "suggested_reteach": (
+                "Use a globe and flashlight to model how axial tilt changes "
+                "the angle and duration of sunlight. Point out that when it is "
+                "summer in the Northern Hemisphere, it is winter in the Southern."
+            ),
+            "wrong_answer_pattern": "says seasons caused by distance from Sun",
         },
     ]
