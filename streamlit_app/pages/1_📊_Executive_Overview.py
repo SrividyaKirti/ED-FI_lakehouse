@@ -365,23 +365,20 @@ def render_district():
         display_df = school_df[["school_name", "district_name", "school_type", "students", "avg_score"]].copy()
         display_df.columns = ["School", "District", "Type", "Students", "Avg Score"]
 
-        selected_school = st.selectbox(
-            "Select a school to explore",
-            options=["-- Choose --"] + school_df["school_name"].tolist(),
-            key="exec_school_select",
-        )
-
         st.dataframe(display_df, use_container_width=True, hide_index=True)
 
-        if selected_school != "-- Choose --":
-            row = school_df[school_df["school_name"] == selected_school].iloc[0]
-            drill_into(
-                "school",
-                nav_school_id=row["school_id"],
-                nav_school_name=row["school_name"],
-                nav_district=row["district_name"],
-            )
-            st.rerun()
+        for _, row in school_df.iterrows():
+            if st.button(
+                f"{row['school_name']}  ({row['district_name']})",
+                key=f"drill_school_{row['school_id']}",
+            ):
+                drill_into(
+                    "school",
+                    nav_school_id=row["school_id"],
+                    nav_school_name=row["school_name"],
+                    nav_district=row["district_name"],
+                )
+                st.rerun()
 
 
 # =====================================================================
@@ -540,21 +537,18 @@ def render_school():
         display_gt = grade_table[["grade_label", "students", "avg_score"]].copy()
         display_gt.columns = ["Grade", "Students", "Avg Score"]
 
-        selected_grade = st.selectbox(
-            "Select a grade",
-            options=["-- Choose --"] + grade_table["grade_label"].tolist(),
-            key="exec_grade_select",
-        )
-
         st.dataframe(display_gt, use_container_width=True, hide_index=True)
 
-        if selected_grade != "-- Choose --":
-            row = grade_table[grade_table["grade_label"] == selected_grade].iloc[0]
-            drill_into(
-                "grade",
-                nav_grade=int(row["grade_level"]),
-            )
-            st.rerun()
+        for _, row in grade_table.iterrows():
+            if st.button(
+                row["grade_label"],
+                key=f"drill_grade_{int(row['grade_level'])}",
+            ):
+                drill_into(
+                    "grade",
+                    nav_grade=int(row["grade_level"]),
+                )
+                st.rerun()
 
 
 # =====================================================================
@@ -698,22 +692,19 @@ def render_grade():
         display_st = sec_table[["course_name", "subject", "curriculum_version", "students"]].copy()
         display_st.columns = ["Section", "Subject", "Curriculum", "Students"]
 
-        selected_section = st.selectbox(
-            "Select a section",
-            options=["-- Choose --"] + sec_table["course_name"].tolist(),
-            key="exec_section_select",
-        )
-
         st.dataframe(display_st, use_container_width=True, hide_index=True)
 
-        if selected_section != "-- Choose --":
-            row = sec_table[sec_table["course_name"] == selected_section].iloc[0]
-            drill_into(
-                "section",
-                nav_section_id=row["section_id"],
-                nav_section_name=row["course_name"],
-            )
-            st.rerun()
+        for _, row in sec_table.iterrows():
+            if st.button(
+                f"{row['course_name']}  ({row['subject']})",
+                key=f"drill_section_{row['section_id']}",
+            ):
+                drill_into(
+                    "section",
+                    nav_section_id=row["section_id"],
+                    nav_section_name=row["course_name"],
+                )
+                st.rerun()
 
 
 # =====================================================================
@@ -793,17 +784,15 @@ def render_section():
         display_sl = student_list[["student_id", "avg_score", "standards_assessed"]].copy()
         display_sl.columns = ["Student ID", "Avg Score", "Standards Assessed"]
 
-        selected_student = st.selectbox(
-            "Select a student",
-            options=["-- Choose --"] + student_list["student_id"].tolist(),
-            key="exec_student_select",
-        )
-
         st.dataframe(display_sl, use_container_width=True, hide_index=True)
 
-        if selected_student != "-- Choose --":
-            drill_into("student", nav_student_id=selected_student)
-            st.rerun()
+        for _, row in student_list.iterrows():
+            if st.button(
+                f"{row['student_id']}  (Avg: {row['avg_score']})",
+                key=f"drill_student_{row['student_id']}",
+            ):
+                drill_into("student", nav_student_id=row["student_id"])
+                st.rerun()
 
 
 # =====================================================================
